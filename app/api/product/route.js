@@ -35,13 +35,24 @@ export async function GET(req) {
 
         restaurantDistinct = restaurantDistinct.map((restaurant) => restaurant.toString());
 
-        let restaurants = await db
+        let restaurant = await db.collection('restaurants').find({}).toArray();
+
+        let products = await db
             .collection('products')
             .find({ restaurant_id: { $in: restaurantDistinct } })
             .sort({ createdAt: -1 })
             .toArray();
 
-        return NextResponse.json(restaurants);
+        // console.log(restaurant);
+
+        products = products.map((product) => {
+            product.restaurant_name = restaurant.find((restaurant) => restaurant._id.toString() === product.restaurant_id.toString()).name;
+            return product;
+        });
+
+        // console.log(products);
+
+        return NextResponse.json(products);
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
