@@ -40,7 +40,7 @@ export async function GET(req) {
         let products = await db
             .collection('products')
             .find({ restaurant_id: { $in: restaurantDistinct } })
-            .sort({ createdAt: -1 })
+            .sort({ restaurant_id: 1, createdAt: -1 })
             .toArray();
 
         // console.log(restaurant);
