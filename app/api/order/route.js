@@ -58,11 +58,11 @@ export async function POST(req) {
     // const user = await authenticate(req);
 
     const body = await req.json();
-    const { productId, price, quantity, userId, image, restaurant_id, email, studentId } = body;
+    const { productId, price, quantity, userId, image, restaurant_id, restaurant_name, email, studentId } = body;
 
-    if (!productId || !price || !quantity || !userId || !image || !restaurant_id || !email || !studentId) {
+    if (!productId || !price || !quantity || !userId || !image || !restaurant_id || !restaurant_name || !email || !studentId) {
       return NextResponse.json(
-        { error: 'All fields are required: productId, price, quantity, userId, image, restaurant_id, email, studentId' },
+        { error: 'All fields are required: productId, price, quantity, userId, image, restaurant_id, restaurant_name, email, studentId' },
         { status: 400 }
       );
     }
@@ -72,10 +72,12 @@ export async function POST(req) {
     const order = {
       productId: new ObjectId(productId),
       price: parseFloat(price),
+      amount: Number(price) * Number(quantity),
       quantity: parseInt(quantity),
       userId: userId,
       image: image.trim(),
       restaurant_id: restaurant_id,
+      restaurant_name: restaurant_name,
       email: email.trim(),
       studentId: studentId.trim(),
       status: 'PENDING',
