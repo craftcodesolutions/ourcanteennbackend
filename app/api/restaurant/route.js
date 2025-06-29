@@ -31,11 +31,18 @@ export async function GET(req) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const restaurants = await db
+    const institutes = await db.collection('institutes').find({}).toArray();
+
+    let restaurants = await db
       .collection('restaurants')
       .find({ institute: userRecord.institute })
       .sort({ createdAt: -1 })
       .toArray();
+
+    restaurants = restaurants.map((restaurant) => {
+      restaurant.institute = institutes.find((institute) => institute.id.toString() === restaurant.institute).name;
+      return restaurant;
+    });
 
     return NextResponse.json(restaurants);
   } catch (err) {
