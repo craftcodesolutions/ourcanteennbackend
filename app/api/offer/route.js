@@ -32,7 +32,19 @@ export async function GET(req) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    return NextResponse.json(offers);
+    // Fetch all restaurants to get restaurant names
+    const restaurants = await db.collection('restaurants').find({}).toArray();
+
+    // Add restaurant_name to each offer
+    const offersWithRestaurantNames = offers.map((offer) => {
+      const restaurant = restaurants.find((restaurant) => restaurant._id.toString() === offer.restaurant_id.toString());
+      return {
+        ...offer,
+        restaurant_name: restaurant ? restaurant.name : 'Unknown Restaurant'
+      };
+    });
+
+    return NextResponse.json(offersWithRestaurantNames);
   } catch (err) {
     console.error(err);
     const status = err.status || 500;
@@ -57,40 +69,13 @@ export async function POST(req) {
       );
     }
 
-    // Validate title length (VARCHAR(150))
-    if (title.length > 150) {
-      return NextResponse.json(
-        { error: 'Title must be 150 characters or less' },
-        { status: 400 }
-      );
-    }
-
-    // Validate image URL length (VARCHAR(255))
-    if (image && image.length > 255) {
-      return NextResponse.json(
-        { error: 'Image URL must be 255 characters or less' },
-        { status: 400 }
-      );
-    }
-
-    // Validate discount (NUMERIC(5,2))
-    if (discount !== undefined && discount !== null) {
-      const discountNum = parseFloat(discount);
-      if (isNaN(discountNum) || discountNum < 0 || discountNum > 999.99) {
-        return NextResponse.json(
-          { error: 'Discount must be a number between 0 and 999.99' },
-          { status: 400 }
-        );
-      }
-    }
-
     const db = (await clientPromise).db();
 
     const offer = {
       title: title.trim(),
       image: image ? image.trim() : null,
       discount: discount !== undefined && discount !== null ? parseFloat(discount) : null,
-      restaurant_id: parseInt(restaurant_id),
+      restaurant_id: restaurant_id,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
