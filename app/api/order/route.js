@@ -19,32 +19,20 @@ async function authenticate(req) {
   }
 }
 
-// === GET: Return all restaurants from user's institute ===
+// === GET: Return all orders for the authenticated user ===
 export async function GET(req) {
   try {
     const user = await authenticate(req);
     const db = (await clientPromise).db();
 
-    // Fetch user's full record to get their institute
-    const userRecord = await db.collection('users').findOne({ _id: new ObjectId(user.userId) });
-    if (!userRecord) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const institutes = await db.collection('institutes').find({}).toArray();
-
-    let restaurants = await db
-      .collection('restaurants')
-      .find({ institute: userRecord.institute })
+    // Fetch orders for the authenticated user
+    const orders = await db
+      .collection('orders')
+      .find({ userId: user.userId })
       .sort({ createdAt: -1 })
       .toArray();
 
-    restaurants = restaurants.map((restaurant) => {
-      restaurant.institute = institutes.find((institute) => institute.id.toString() === restaurant.institute).name;
-      return restaurant;
-    });
-
-    return NextResponse.json(restaurants);
+    return NextResponse.json(orders);
   } catch (err) {
     console.error(err);
     const status = err.status || 500;
