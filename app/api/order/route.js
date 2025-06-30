@@ -55,7 +55,9 @@ export async function GET(req) {
 // === POST: Create order ===
 export async function POST(req) {
   try {
-    // const user = await authenticate(req);
+    const user = await authenticate(req);
+
+    console.log(user);
 
     const body = await req.json();
     const { productId, price, quantity, userId, image, restaurant_id, restaurant_name, email, studentId } = body;
