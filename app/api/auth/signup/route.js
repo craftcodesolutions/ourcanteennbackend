@@ -38,9 +38,15 @@ export async function POST(req) {
     const db = (await clientPromise).db();
     const users = db.collection('users');
 
-    const existingUser = await users.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 409 });
+    const existingUserEmail = await users.findOne({ email: email.toLowerCase() });
+    const existingUserPhone = await users.findOne({ phoneNumber: phoneNumber });
+
+    if (existingUserEmail) {
+      return NextResponse.json({ error: 'User with this email already exists. Try Again with another Email.' }, { status: 409 });
+    }
+
+    if (existingUserPhone) {
+      return NextResponse.json({ error: 'User with this phone number already exists. Try again with another Phone Number' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
