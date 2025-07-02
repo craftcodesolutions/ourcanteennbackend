@@ -55,7 +55,9 @@ export async function POST(req) {
             { $set: { cuisine: latestC } }
         );
 
-        return NextResponse.json(latestC, { status: 200 });
+        const cuisines = await db.collection('cuisines').find({}).toArray();
+
+        return NextResponse.json({latestC, cuisines}, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
