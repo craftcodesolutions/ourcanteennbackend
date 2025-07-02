@@ -127,19 +127,19 @@ export async function PUT(req) {
             }
         };
 
-        const result = await db.collection('restaurants').findOneAndUpdate(
+        const result = await db.collection('restaurants').updateOne(
             filter,
-            update,
-            { returnDocument: 'after' }
+            update
         );
 
-        if (!result.value) {
+        if (result.matchedCount === 0) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
         }
 
-        console.log('Updated restaurant:', result.value);
+        const updatedRestaurant = await db.collection('restaurants').findOne(filter);
 
-        return NextResponse.json(result.value);
+        return NextResponse.json(updatedRestaurant);
+        
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
