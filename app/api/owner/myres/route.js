@@ -54,11 +54,11 @@ export async function POST(req) {
     try {
         const user = await authenticate(req);
         const body = await req.json();
-        const { name, banner, location, institute } = body;
+        const { name, institute, location, banner, logo, openingHours } = body;
 
-        if (!name || !banner || !location || !institute) {
+        if (!name || !banner || !location || !institute || !logo || !openingHours) {
             return NextResponse.json(
-                { error: 'Name, location, and institute are required' },
+                { error: 'Name, location, institute, logo, and opening hours are required' },
                 { status: 400 }
             );
         }
@@ -70,7 +70,7 @@ export async function POST(req) {
         });
 
         if (existing) {
-            return NextResponse.json({ error: 'You already have a restaurant' }, { status: 400 });
+            return NextResponse.json({ error: 'You already have a restaurant' }, { status: 403 });
         }
 
         const restaurant = {
@@ -78,6 +78,8 @@ export async function POST(req) {
             location: location.trim(),
             institute: institute.trim(),
             banner: banner.trim(),
+            logo: logo.trim(),
+            openingHours: openingHours,
             ownerId: new ObjectId(user.userId),
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -85,12 +87,11 @@ export async function POST(req) {
 
         const result = await db.collection('restaurants').insertOne(restaurant);
 
-        await db.collection('users').updateOne(
-            { _id: new ObjectId(user.userId) },
-            { $set: { isOwner: true, updatedAt: new Date() } }
-        );
+        const searchAgain = await db.collection('restaurants').findOne({
+            ownerId: new ObjectId(user.userId)
+        });
 
-        return NextResponse.json({ id: result.insertedId, ...restaurant }, { status: 201 });
+        return NextResponse.json(searchAgain, { status: 201 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
