@@ -19,36 +19,6 @@ async function authenticate(req) {
     }
 }
 
-// === GET: Return all restaurants from user's institute ===
-export async function GET(req) {
-    try {
-        const user = await authenticate(req);
-        const db = (await clientPromise).db();
-
-        // Fetch user's full record to get their institute
-        const userRecord = await db.collection('users').findOne({ _id: new ObjectId(user.userId), isOwner: true });
-
-        if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner' }, { status: 401 });
-        }
-
-        let restaurant = await db
-            .collection('restaurants')
-            .findOne({ ownerId: new ObjectId(user.userId) })
-
-        if (!restaurant) {
-            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-        }
-
-        return NextResponse.json(restaurant);
-
-    } catch (err) {
-        console.error(err);
-        const status = err.status || 500;
-        return NextResponse.json({ error: err.error || 'Server error' }, { status });
-    }
-}
-
 // === POST: Create restaurant (same as before) ===
 export async function POST(req) {
     try {
@@ -71,9 +41,11 @@ export async function POST(req) {
             let result = await db.collection('cuisines').insertMany(newCuisine);
 
             if (result.insertedCount > 0) {
-                result.insertedIds.forEach(id => {
-                    console.log('New cuisines added:', id.toString());
-                    latestC.push(id.toString());
+                console.log('New cuisines added:', result);
+                const newCuisineIds = Object.values(result.insertedIds).map(id => id.toString());
+                newCuisineIds.forEach(id => {
+                    console.log('New cuisines added:', id);
+                    latestC.push(id);
                 });
             }
         }
