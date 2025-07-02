@@ -99,6 +99,54 @@ export async function POST(req) {
     }
 }
 
+// === PUT: Edit restaurant details ===
+export async function PUT(req) {
+    try {
+        const user = await authenticate(req);
+        const body = await req.json();
+        const { name, institute, location, banner, logo, openingHours } = body;
+
+        if (!name && !institute && !location && !banner && !logo && !openingHours) {
+            return NextResponse.json(
+                { error: 'At least one field is required to update' },
+                { status: 400 }
+            );
+        }
+
+        const db = (await clientPromise).db();
+        const filter = { ownerId: new ObjectId(user.userId) };
+        const update = {
+            $set: {
+                ...(name && { name: name.trim() }),
+                ...(location && { location: location.trim() }),
+                ...(institute && { institute: institute.trim() }),
+                ...(banner && { banner: banner.trim() }),
+                ...(logo && { logo: logo.trim() }),
+                ...(openingHours && { openingHours }),
+                updatedAt: new Date(),
+            }
+        };
+
+        const result = await db.collection('restaurants').findOneAndUpdate(
+            filter,
+            update,
+            { returnDocument: 'after' }
+        );
+
+        if (!result.value) {
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+        }
+
+        console.log('Updated restaurant:', result.value);
+
+        return NextResponse.json(result.value);
+    } catch (err) {
+        console.error(err);
+        const status = err.status || 500;
+        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+    }
+}
+
 // === CORS ===
 export async function OPTIONS() {
     return new NextResponse(null, {
