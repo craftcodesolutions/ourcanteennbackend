@@ -69,7 +69,15 @@ export async function GET(req, { params }) {
             return { ...item, cuisine: cuisineObj };
         });
 
-        return NextResponse.json({ restaurant, menuitems });
+        // Categorize menuitems by cuisine
+        const menuByCuisine = {};
+        menuitems.forEach(item => {
+            const cuisineKey = item.cuisine && item.cuisine.name ? `${item.cuisine._id}:${item.cuisine.name}` : 'Uncategorized';
+            if (!menuByCuisine[cuisineKey]) menuByCuisine[cuisineKey] = [];
+            menuByCuisine[cuisineKey].push(item);
+        });
+
+        return NextResponse.json({ restaurant, menuByCuisine });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;

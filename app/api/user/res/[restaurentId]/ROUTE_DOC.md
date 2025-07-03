@@ -1,10 +1,10 @@
-# Get Restaurant Details and Menu
+# Get Restaurant Details and Categorized Menu
 
 **Endpoint:**
 `GET https://ourcanteennbackend.vercel.app/api/user/res/[restaurentId]`
 
 ## Description
-Returns the full details of a single restaurant (by its ID) and all menu items for that restaurant, with cuisine and institute names resolved.
+Returns the full details of a single restaurant (by its ID) and all menu items for that restaurant, categorized by cuisine. Cuisine and institute names are resolved.
 
 ## Authentication
 - Requires a valid JWT token in the `Authorization` header:
@@ -20,7 +20,7 @@ Returns the full details of a single restaurant (by its ID) and all menu items f
 ## Response
 
 - **200 OK**
-  Returns a JSON object with the restaurant details and its menu items.
+  Returns a JSON object with the restaurant details and its menu items categorized by cuisine.
 
 ### Example Response
 
@@ -51,21 +51,39 @@ Returns the full details of a single restaurant (by its ID) and all menu items f
       { "_id": "686564f9be897d4481d5857b", "name": "Rice" }
     ]
   },
-  "menuitems": [
-    {
-      "_id": "68666aff3fec3c3fd6d73d55",
-      "name": "Meye",
-      "description": "Sex",
-      "price": 699,
-      "image": "https://res.cloudinary.com/dmlsf2eac/image/upload/v1751542520/ixap3vlgk7gknnqmzu9j.jpg",
-      "cuisine": { "_id": "686564f9be897d4481d5857a", "name": "Breakfast" },
-      "available": true,
-      "restaurantId": "68666ac53fec3c3fd6d73d54",
-      "createdAt": "2025-07-03T11:35:27.573Z",
-      "updatedAt": "2025-07-03T11:35:27.573Z"
-    }
-    // ...other menu items...
-  ]
+  "menuByCuisine": {
+    "686564f9be897d4481d5857a:Breakfast": [
+      {
+        "_id": "68666aff3fec3c3fd6d73d55",
+        "name": "Meye",
+        "description": "Sex",
+        "price": 699,
+        "image": "https://res.cloudinary.com/dmlsf2eac/image/upload/v1751542520/ixap3vlgk7gknnqmzu9j.jpg",
+        "cuisine": { "_id": "686564f9be897d4481d5857a", "name": "Breakfast" },
+        "available": true,
+        "restaurantId": "68666ac53fec3c3fd6d73d54",
+        "createdAt": "2025-07-03T11:35:27.573Z",
+        "updatedAt": "2025-07-03T11:35:27.573Z"
+      }
+      // ...other menu items for Breakfast...
+    ],
+    "686564f9be897d4481d58579:Biriyani": [
+      {
+        "_id": "68666b303fec3c3fd6d73d56",
+        "name": "Hola",
+        "description": "Hola magi",
+        "price": 75,
+        "image": "https://res.cloudinary.com/dmlsf2eac/image/upload/v1751542573/utezp6bhqpf71o3czeq6.jpg",
+        "cuisine": { "_id": "686564f9be897d4481d58579", "name": "Biriyani" },
+        "available": true,
+        "restaurantId": "68666ac53fec3c3fd6d73d54",
+        "createdAt": "2025-07-03T11:36:16.978Z",
+        "updatedAt": "2025-07-03T11:36:16.978Z"
+      }
+      // ...other menu items for Biriyani...
+    ]
+    // ...other cuisines...
+  }
 }
 ```
 
@@ -76,3 +94,8 @@ Returns the full details of a single restaurant (by its ID) and all menu items f
 - **404 Not Found**: User or restaurant not found.
 - **400 Bad Request**: Restaurant ID not provided.
 - **500 Server Error**: Unexpected server error.
+
+## CORS
+- Allowed methods: `GET, POST, OPTIONS`
+- Allowed headers: `Content-Type, Authorization`
+- Allowed origin: `*`
