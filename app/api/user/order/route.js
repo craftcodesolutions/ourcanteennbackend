@@ -39,7 +39,7 @@ export async function POST(req) {
         const user = await authenticate(req);
         const db = (await clientPromise).db();
         const body = await req.json();
-        const cart = body.cart;
+        const {cart, collectionTime} = body;
         if (!Array.isArray(cart) || cart.length === 0) {
             return NextResponse.json({ error: 'Cart is empty or invalid' }, { status: 400 });
         }
@@ -56,6 +56,7 @@ export async function POST(req) {
             items: cart,
             total,
             status: 'PENDING',
+            collectionTime,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
