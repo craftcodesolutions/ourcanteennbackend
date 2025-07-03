@@ -94,8 +94,3 @@ Returns the full details of a single restaurant (by its ID) and all menu items f
 - **404 Not Found**: User or restaurant not found.
 - **400 Bad Request**: Restaurant ID not provided.
 - **500 Server Error**: Unexpected server error.
-
-## CORS
-- Allowed methods: `GET, POST, OPTIONS`
-- Allowed headers: `Content-Type, Authorization`
-- Allowed origin: `*`

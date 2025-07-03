@@ -58,7 +58,7 @@ export async function GET(req, { params }) {
         });
 
         // Fetch all menuitems for this restaurant
-        let menuitems = await db.collection('menuitems').find({ restaurantId: new ObjectId(restaurentId) }).sort({ cuisine: -1 }).toArray();
+        let menuitems = await db.collection('menuitems').find({ restaurantId: new ObjectId(restaurentId), available: true }).sort({ cuisine: -1 }).toArray();
         // Add cuisine object to each menuitem
         menuitems = menuitems.map(item => {
             let cuisineObj = null;
