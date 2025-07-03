@@ -33,3 +33,22 @@ Update an order's status to `SUCCESS` for a specific user and order, by an authe
 
 ## Description
 This endpoint allows a restaurant owner to update the status of an order to `SUCCESS`. The owner must be authenticated, and the order must belong to their restaurant. The request must include both the `orderId` and `userId` in the body.
+
+## Example Request
+```
+PUT /api/owner/orderstatus
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "orderId": "60f7c2b8e1d2c8a1b4e8d123",
+  "userId": "60f7c2b8e1d2c8a1b4e8d456"
+}
+```
+
+## Example Success Response
+```
+{
+  "status": "SUCCESS"
+}
+```

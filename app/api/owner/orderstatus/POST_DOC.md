@@ -19,6 +19,7 @@ Update the status of an order to `SCANNED` for a restaurant owner. This endpoint
 - **Body:**
 ```
 {
+  "success": true,
   "order": {
     "_id": "...",
     "userId": "...",
@@ -26,6 +27,16 @@ Update the status of an order to `SCANNED` for a restaurant owner. This endpoint
     ...,
     "status": "SCANNED"
   }
+}
+```
+
+## Special Case: Already Success
+If the order status is already `SUCCESS`, the response will be:
+```
+{
+  "success": false,
+  "alreadySuccess": true,
+  "message": "Order already marked as SUCCESS"
 }
 ```
 
@@ -59,6 +70,7 @@ Content-Type: application/json
 ## Example Success Response
 ```
 {
+  "success": true,
   "order": {
     "_id": "60f7c2b8e1d2c8a1b4e8d123",
     "userId": "60f7c2b8e1d2c8a1b4e8d456",
@@ -66,5 +78,14 @@ Content-Type: application/json
     ...,
     "status": "SCANNED"
   }
+}
+```
+
+## Example Already Success Response
+```
+{
+  "success": false,
+  "alreadySuccess": true,
+  "message": "Order already marked as SUCCESS"
 }
 ```

@@ -57,6 +57,14 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
         }
 
+        if (order.status === 'SUCCESS') {
+            return NextResponse.json({
+                success: false,
+                alreadySuccess: true,
+                message: 'Order already marked as SUCCESS'
+            }, { status: 200 });
+        }
+
         // Update order status to SCANNED
         await db.collection('orders').updateOne(
             { _id: new ObjectId(orderId), userId: userId },
@@ -65,7 +73,7 @@ export async function POST(req) {
         // Fetch updated order
         const updatedOrder = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
 
-        return NextResponse.json({ order: updatedOrder }, { status: 200 });
+        return NextResponse.json({ success: true, order: updatedOrder }, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
