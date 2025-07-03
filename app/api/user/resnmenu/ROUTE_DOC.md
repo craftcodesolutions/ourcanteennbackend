@@ -1,11 +1,11 @@
 # User Institute Restaurants & Menu Items API
 
-**Endpoint:** `/api/user/resnmenu`
+**Endpoint:** `https://ourcanteennbackend.vercel.app/api/user/resnmenu`
 
 ## Methods
 
 ### GET
-Retrieve all restaurants from the authenticated user's institute and all menu items from those restaurants, with each menu item including its restaurant's name.
+Retrieve all restaurants from the authenticated user's institute and all menu items from those restaurants, with each menu item including its restaurant's name and cuisine as an object.
 
 #### Request
 - **Headers:**
@@ -30,7 +30,10 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
       "ownerId": "<ownerId>",
       "createdAt": "<ISO date>",
       "updatedAt": "<ISO date>",
-      "cuisine": [<cuisine ids>]
+      "cuisine": [
+        { "_id": "<cuisineId>", "name": "<cuisine name>" },
+        ...
+      ]
     }
   ],
   "allmenuitems": [
@@ -40,7 +43,7 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
       "description": "<description>",
       "price": <number>,
       "image": "<image url>",
-      "cuisine": "<cuisine id>",
+      "cuisine": { "_id": "<cuisineId>", "name": "<cuisine name>" },
       "available": <boolean>,
       "restaurantId": "<restaurantId>",
       "createdAt": "<ISO date>",
@@ -67,9 +70,9 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
             "createdAt": "2025-07-03T11:34:29.155Z",
             "updatedAt": "2025-07-03T11:34:29.155Z",
             "cuisine": [
-                "686564f9be897d4481d58579",
-                "686564f9be897d4481d5857a",
-                "686564f9be897d4481d5857b"
+                { "_id": "686564f9be897d4481d58579", "name": "Bangladeshi" },
+                { "_id": "686564f9be897d4481d5857a", "name": "Indian" },
+                { "_id": "686564f9be897d4481d5857b", "name": "Chinese" }
             ]
         }
     ],
@@ -80,7 +83,7 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
             "description": "Sex",
             "price": 699,
             "image": "https://res.cloudinary.com/dmlsf2eac/image/upload/v1751542520/ixap3vlgk7gknnqmzu9j.jpg",
-            "cuisine": "686564f9be897d4481d5857a",
+            "cuisine": { "_id": "686564f9be897d4481d5857a", "name": "Indian" },
             "available": true,
             "restaurantId": "68666ac53fec3c3fd6d73d54",
             "createdAt": "2025-07-03T11:35:27.573Z",
@@ -93,7 +96,7 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
             "description": "Hola magi",
             "price": 75,
             "image": "https://res.cloudinary.com/dmlsf2eac/image/upload/v1751542573/utezp6bhqpf71o3czeq6.jpg",
-            "cuisine": "686564f9be897d4481d58579",
+            "cuisine": { "_id": "686564f9be897d4481d58579", "name": "Bangladeshi" },
             "available": true,
             "restaurantId": "68666ac53fec3c3fd6d73d54",
             "createdAt": "2025-07-03T11:36:16.978Z",
@@ -110,9 +113,4 @@ Retrieve all restaurants from the authenticated user's institute and all menu it
 - `404 Not Found`: User not found.
 - `500 Internal Server Error`: Server error.
 
-#### CORS
-- `OPTIONS` method is supported for CORS preflight.
-
----
-
-**Note:** Only authenticated users can access this endpoint. Menu items are filtered to only those belonging to restaurants in the user's institute, and each menu item includes its restaurant's name for convenience.
+**Note:** Only authenticated users can access this endpoint. Menu items are filtered to only those belonging to restaurants in the user's institute, and each menu item includes its restaurant's name and cuisine object for convenience.

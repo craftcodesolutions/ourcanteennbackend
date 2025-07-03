@@ -31,7 +31,10 @@ export async function GET(req) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        // Fetch all institutes for mapping
         const institutes = await db.collection('institutes').find({}).toArray();
+        // Fetch all cuisines for mapping
+        const cuisines = await db.collection('cuisines').find({}).toArray();
 
         let restaurants = await db
             .collection('restaurants')
@@ -41,6 +44,11 @@ export async function GET(req) {
 
         restaurants = restaurants.map((restaurant) => {
             restaurant.institute = institutes.find((institute) => institute._id.toString() === restaurant.institute).name;
+            // Replace cuisine ids with objects {_id, name}
+            restaurant.cuisine = (restaurant.cuisine || []).map(cid => {
+                const c = cuisines.find(cu => cu._id.toString() === cid.toString());
+                return c ? { _id: c._id.toString(), name: c.name } : { _id: cid.toString(), name: null };
+            });
             return restaurant;
         });
 
@@ -48,11 +56,17 @@ export async function GET(req) {
 
         // Fetch all menuitems for these restaurants
         const restaurantIds = restaurants.map(r => new ObjectId(r._id));
-        let allmenuitems = await db.collection('menuitems').find({ restaurantId: { $in: restaurantIds } }).toArray();
-        // Add restaurant name to each menuitem
+        let allmenuitems = await db.collection('menuitems').find({ restaurantId: { $in: restaurantIds } }).sort({ cuisine: -1 }).toArray();
+        // Add restaurant name and cuisine object to each menuitem
         allmenuitems = allmenuitems.map(item => {
             const rest = restaurants.find(r => r._id.toString() === item.restaurantId.toString());
-            return { ...item, restaurantName: rest ? rest.name : null };
+            // Replace cuisine id with object {_id, name}
+            let cuisineObj = null;
+            if (item.cuisine) {
+                const c = cuisines.find(cu => cu._id.toString() === item.cuisine.toString());
+                cuisineObj = c ? { _id: c._id.toString(), name: c.name } : { _id: item.cuisine.toString(), name: null };
+            }
+            return { ...item, restaurantName: rest ? rest.name : null, cuisine: cuisineObj };
         });
 
         return NextResponse.json({restaurants, allmenuitems});
