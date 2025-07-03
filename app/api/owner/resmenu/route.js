@@ -65,7 +65,10 @@ export async function POST(req) {
             updatedAt: new Date(),
         };
         const result = await db.collection('menuitems').insertOne(menuItem);
-        return NextResponse.json({ ...menuItem, _id: result.insertedId }, { status: 201 });
+
+        const updatedMenuItem = await db.collection('menuitems').find({ restaurantId: restaurant._id }).toArray();
+
+        return NextResponse.json(updatedMenuItem, { status: 201 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
@@ -103,7 +106,7 @@ export async function PUT(req) {
         if (result.matchedCount === 0) {
             return NextResponse.json({ error: 'Menu item not found' }, { status: 404 });
         }
-        const updatedMenuItem = await db.collection('menuitems').findOne(filter);
+        const updatedMenuItem = await db.collection('menuitems').find({ restaurantId: restaurant._id }).toArray();
         return NextResponse.json(updatedMenuItem);
     } catch (err) {
         console.error(err);
