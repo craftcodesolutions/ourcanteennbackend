@@ -56,7 +56,7 @@ export async function GET(req) {
 
         // Fetch all menuitems for these restaurants
         const restaurantIds = restaurants.map(r => new ObjectId(r._id));
-        let allmenuitems = await db.collection('menuitems').find({ restaurantId: { $in: restaurantIds } }).sort({ cuisine: -1 }).toArray();
+        let allmenuitems = await db.collection('menuitems').find({ restaurantId: { $in: restaurantIds }, available: true }).sort({ cuisine: -1 }).toArray();
         // Add restaurant name and cuisine object to each menuitem
         allmenuitems = allmenuitems.map(item => {
             const rest = restaurants.find(r => r._id.toString() === item.restaurantId.toString());

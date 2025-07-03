@@ -4,7 +4,7 @@
 Retrieve all orders for the authenticated user.
 
 ## Endpoint
-`GET /api/user/order`
+`GET https://ourcanteennbackend.vercel.app/api/user/order`
 
 ## Headers
 - `Authorization: Bearer <token>` (required)
@@ -19,7 +19,7 @@ Retrieve all orders for the authenticated user.
         {
           "_id": "<orderId>",
           "userId": "<userId>",
-          "items": ["<productId1>", "<productId2>", ...],
+          "items": cart,
           "total": 100,
           "status": "PENDING",
           "createdAt": "2025-07-03T12:00:00.000Z",

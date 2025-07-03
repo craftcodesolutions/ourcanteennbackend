@@ -44,10 +44,15 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Cart is empty or invalid' }, { status: 400 });
         }
 
+        console.log('Creating order for user:', cart);
+
+        const restaurantId = cart[0].restaurantId;
+
         // Calculate total price
         const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
         const order = {
             userId: user.userId,
+            restaurantId: restaurantId,
             items: cart,
             total,
             status: 'PENDING',
