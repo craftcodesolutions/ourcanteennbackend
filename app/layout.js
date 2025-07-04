@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "OurCanteen",
-  description: "OurCanteen",
+  description: "OurCanteen Backend",
 };
 
 export default function RootLayout({ children }) {
