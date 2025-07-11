@@ -58,6 +58,7 @@ export async function POST(req) {
       institute: institute.trim(),
       studentId: studentId.trim(),
       phoneNumber: phoneNumber.trim(),
+      credit: 0,
       isOwner: false,
       createdAt: new Date(),
       updatedAt: new Date(),
