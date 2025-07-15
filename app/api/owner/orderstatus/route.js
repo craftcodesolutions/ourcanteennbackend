@@ -33,15 +33,27 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Order ID and User ID are required' }, { status: 400 });
         }
 
-        const userRecord = await db.collection('users').findOne({ _id: new ObjectId(user.userId), isOwner: true });
+        const userRecord = await db.collection('users').findOne({
+            _id: new ObjectId(user.userId),
+            $or: [
+                { isOwner: true },
+                { 'staff.isStaff': true }
+            ]
+        });
+
 
         if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner' }, { status: 401 });
+            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
         }
 
         let restaurant = await db
             .collection('restaurants')
-            .findOne({ ownerId: new ObjectId(user.userId) })
+            .findOne({
+                $or: [
+                    { ownerId: new ObjectId(user.userId) },
+                    { 'staff.sid': new ObjectId(user.userId) }
+                ]
+            })
 
         let order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
 
@@ -65,10 +77,10 @@ export async function POST(req) {
             }, { status: 200 });
         }
 
-        // Update order status to SCANNED
+        // Update order status to SCANNED and add scannedBy field
         await db.collection('orders').updateOne(
             { _id: new ObjectId(orderId), userId: userId },
-            { $set: { status: 'SCANNED' } }
+            { $set: { status: 'SCANNED', scannedBy: user.userId } }
         );
         // Fetch updated order
         const updatedOrder = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
@@ -94,15 +106,27 @@ export async function PUT(req) {
             return NextResponse.json({ error: 'Order ID and User ID are required' }, { status: 400 });
         }
 
-        const userRecord = await db.collection('users').findOne({ _id: new ObjectId(user.userId), isOwner: true });
+        const userRecord = await db.collection('users').findOne({
+            _id: new ObjectId(user.userId),
+            $or: [
+                { isOwner: true },
+                { 'staff.isStaff': true }
+            ]
+        });
+
 
         if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner' }, { status: 401 });
+            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
         }
 
         let restaurant = await db
             .collection('restaurants')
-            .findOne({ ownerId: new ObjectId(user.userId) })
+            .findOne({
+                $or: [
+                    { ownerId: new ObjectId(user.userId) },
+                    { 'staff.sid': new ObjectId(user.userId) }
+                ]
+            })
 
         let order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
 
@@ -118,13 +142,13 @@ export async function PUT(req) {
             return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
         }
 
-        // Update order status to SCANNED
+        // Update order status to SUCCESS and add succeededBy field
         await db.collection('orders').updateOne(
             { _id: new ObjectId(orderId), userId: userId },
-            { $set: { status: 'SUCCESS' } }
+            { $set: { status: 'SUCCESS', succeededBy: user.userId } }
         );
 
-        return NextResponse.json({ status: 'SUCCESS' }, { status: 200 });
+        return NextResponse.json({ status: 'SUCCESS', succeededBy: user.userId }, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
