@@ -67,7 +67,7 @@ export async function POST(req) {
     const result = await users.insertOne(user);
 
     const token = jwt.sign(
-      { userId: result.insertedId, email: user.email, isOwner: false },
+      { userId: result.insertedId, email: user.email, isOwner: false, staff: null },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -81,7 +81,8 @@ export async function POST(req) {
         institute: user.institute,
         studentId: user.studentId,
         phoneNumber: user.phoneNumber,
-        isOwner: false
+        isOwner: false,
+        stuff: null
       }
     }, { status: 201 });
 

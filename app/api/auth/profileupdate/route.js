@@ -73,6 +73,7 @@ export async function POST(req) {
         studentId: updatedUser.studentId,
         phoneNumber: updatedUser.phoneNumber,
         isOwner: updatedUser.isOwner || false,
+        stuff: updatedUser.stuff || null
       }
     }, { status: 200 });
 

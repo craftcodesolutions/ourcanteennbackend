@@ -44,7 +44,8 @@ export async function POST(req) {
         institute: user.institute,
         studentId: user.studentId,
         phoneNumber: user.phoneNumber,
-        isOwner: user.isOwner
+        isOwner: user.isOwner || false,
+        stuff: user.stuff || null
       }
     });
 
