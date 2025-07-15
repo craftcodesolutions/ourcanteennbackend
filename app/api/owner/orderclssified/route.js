@@ -27,12 +27,17 @@ export async function GET(req) {
 
         const userRecord = await db.collection('users').findOne({ _id: new ObjectId(user.userId) });
         if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner' }, { status: 401 });
+            return NextResponse.json({ error: 'You are not An User' }, { status: 401 });
         }
 
         let restaurant = await db
             .collection('restaurants')
-            .findOne({ ownerId: new ObjectId(user.userId) })
+            .findOne({
+                $or: [
+                    { ownerId: new ObjectId(user.userId) },
+                    { 'staff.sid': new ObjectId(user.userId) }
+                ]
+            })
 
         if (!restaurant) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
@@ -58,7 +63,7 @@ export async function GET(req) {
                         successOrders: 0
                     },
                     orders: [],
-                    itemsMap: {} 
+                    itemsMap: {}
                 };
             }
 
