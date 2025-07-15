@@ -19,7 +19,6 @@ async function authenticate(req) {
     }
 }
 
-
 // === POST: Create a new order for the authenticated user ===
 export async function POST(req) {
     try {
@@ -114,9 +113,14 @@ export async function PUT(req) {
             ]
         });
 
-
         if (!userRecord) {
             return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
+        }
+
+        const customer = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+        if (!customer) {
+            return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
         let restaurant = await db
@@ -138,21 +142,45 @@ export async function PUT(req) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
+        if (Number(customer.credit) < Number(order.total)) {
+            return NextResponse.json({ error: 'Insufficient credit to mark order as SUCCESS' }, { status: 403 });
+        }
+
         if (order.restaurantId !== restaurant._id.toString()) {
             return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
         }
 
-        // Update order status to SUCCESS and add succeededBy field
-        await db.collection('orders').updateOne(
-            { _id: new ObjectId(orderId), userId: userId },
-            { $set: { status: 'SUCCESS', succeededBy: user.userId } }
-        );
+        // Use a transaction to ensure both updates are atomic
+        const session = (await clientPromise).startSession();
+        let transactionResult;
+        try {
+            transactionResult = await session.withTransaction(async () => {
+                const userUpdate = await db.collection('users').updateOne(
+                    { _id: new ObjectId(userId) },
+                    { $set: { credit: Number(customer.credit) - Number(order.total) } },
+                    { session }
+                );
+                if (userUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update user credit' };
+
+                const orderUpdate = await db.collection('orders').updateOne(
+                    { _id: new ObjectId(orderId), userId: userId },
+                    { $set: { status: 'SUCCESS', succeededBy: user.userId } },
+                    { session }
+                );
+                if (orderUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update order status' };
+            });
+        } finally {
+            await session.endSession();
+        }
+        if (transactionResult === undefined || transactionResult === false) {
+            return NextResponse.json({ error: 'Transaction failed, no changes applied.' }, { status: 500 });
+        }
 
         return NextResponse.json({ status: 'SUCCESS', succeededBy: user.userId }, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
-        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+        return NextResponse.json({ error: err.error || err.message || 'Server error' }, { status });
     }
 }
 
@@ -162,7 +190,7 @@ export async function OPTIONS() {
         status: 204,
         headers: {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
     });
