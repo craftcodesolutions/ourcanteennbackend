@@ -1,41 +1,37 @@
 
 # Order Classified API Documentation
 
-## Root URL
+## Base URL
 `https://ourcanteennbackend.vercel.app`
-
-This document describes the API endpoints and logic for the `/api/owner/orderclssified` route in the OurCanteen backend.
-
-## Overview
-This endpoint allows authenticated users (owners) to retrieve their orders grouped by collection date, along with statistics for each date. It also provides CORS support for frontend requests.
 
 ---
 
-## Authentication
+## Endpoint
+
+
+### GET `/api/owner/orderclssified`
+
+Retrieves all orders for the authenticated owner's restaurant, grouped by collection date. Each group includes order statistics and a summary of items ordered for that date. Only authenticated owners can access this endpoint. Orders from other restaurants are not included.
+
+#### Authentication
 - **Type:** Bearer Token (JWT)
 - **Header:** `Authorization: Bearer <token>`
 - The token is verified using the `JWT_SECRET` environment variable.
 - If the token is missing or invalid, the API returns an error with status 401 or 403.
 
----
-
-## Endpoints
-
-### GET `/api/owner/orderclssified`
-
-**Description:**
-Returns all orders for the authenticated owner, grouped by the collection date. Each group includes statistics for total, pending, and successful orders.
-
-**Request Headers:**
+#### Request Headers
 - `Authorization: Bearer <token>`
 
-**Response:**
-- **200 OK**: JSON object where each key is a date (`YYYY-MM-DD`), and the value contains order stats and the list of orders for that date.
+#### Response
+- **200 OK**: JSON object where each key is a date (`YYYY-MM-DD`), and the value contains:
+  - `stats`: Object with `totalOrders`, `pendingOrders`, `successOrders` for that date.
+  - `orders`: Array of order objects for that date (only for the authenticated owner's restaurant).
+  - `itemsSummary`: Array summarizing the total quantity of each item ordered on that date. Each item includes `itemId`, `name`, `image`, and `quantity`.
 - **401 Unauthorized**: If the user is not found or not an owner.
 - **403 Forbidden**: If the token is invalid or expired.
 - **500 Internal Server Error**: For other errors.
 
-**Response Example:**
+#### Example Response
 ```json
 {
   "2025-07-15": {
@@ -47,30 +43,45 @@ Returns all orders for the authenticated owner, grouped by the collection date. 
     "orders": [
       { /* order object */ },
       ...
+    ],
+    "itemsSummary": [
+      {
+        "itemId": "abc123",
+        "name": "Burger",
+        "image": "https://example.com/burger.jpg",
+        "quantity": 5
+      },
+      {
+        "itemId": "def456",
+        "name": "Fries",
+        "image": "https://example.com/fries.jpg",
+        "quantity": 2
+      }
     ]
   },
   ...
 }
 ```
 
-**Logic:**
+#### Logic
 - Authenticates the user via JWT.
 - Checks if the user exists in the `users` collection.
-- Fetches all orders from the `orders` collection where `userId` matches the authenticated user.
+- Finds the restaurant owned by the authenticated user in the `restaurants` collection.
+- Fetches all orders from the `orders` collection for that restaurant (filtered by `restaurantId`).
 - Groups orders by the date part of `collectionTime`.
 - For each date, calculates:
-  - `totalOrders`: Total number of orders.
+  - `totalOrders`: Total number of orders for that date.
   - `pendingOrders`: Orders with status `PENDING`.
   - `successOrders`: Orders with status `SUCCESS`.
+  - `itemsSummary`: Array of items with total quantity per item for that date. Each item includes `itemId`, `name`, `image`, and `quantity`.
 
 ---
 
 ### OPTIONS `/api/owner/orderclssified`
 
-**Description:**
-CORS preflight support. Allows cross-origin requests from any origin.
+Handles CORS preflight requests. Allows cross-origin requests from any origin.
 
-**Response Headers:**
+#### Response Headers
 - `Access-Control-Allow-Origin: *`
 - `Access-Control-Allow-Methods: GET, POST, OPTIONS`
 - `Access-Control-Allow-Headers: Content-Type, Authorization`
@@ -85,8 +96,8 @@ CORS preflight support. Allows cross-origin requests from any origin.
 
 ---
 
-## Notes
+## Additional Notes
 - This endpoint is intended for owner users. Ensure the JWT token corresponds to a valid owner in the `users` collection.
-- The grouping is based on the `collectionTime` field, which should be an ISO date string.
-
----
+- Only orders for the authenticated owner's restaurant are included (filtered by `restaurantId`).
+- Orders are grouped by the `collectionTime` field, which should be an ISO date string.
+- The response includes an `itemsSummary` array for each date, summarizing the total quantity of each item ordered on that date. Each item includes `itemId`, `name`, `image`, and `quantity`.

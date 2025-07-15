@@ -19,7 +19,7 @@ async function authenticate(req) {
     }
 }
 
-// === GET: Grouped Orders by Collection Date ===
+// === GET: Grouped Orders with Item Summary ===
 export async function GET(req) {
     try {
         const user = await authenticate(req);
@@ -30,17 +30,25 @@ export async function GET(req) {
             return NextResponse.json({ error: 'You are not Owner' }, { status: 401 });
         }
 
+        let restaurant = await db
+            .collection('restaurants')
+            .findOne({ ownerId: new ObjectId(user.userId) })
+
+        if (!restaurant) {
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+        }
+
         const orders = await db.collection('orders')
-            .find({ 
-                // userId: user.userId
-             })
-            .sort({ collectionTime: -1, status: -1 }) // string ISO works for sort
+            .find({
+                restaurantId: restaurant._id
+            })
+            .sort({ collectionTime: -1, status: -1 })
             .toArray();
 
         const grouped = {};
 
         for (const order of orders) {
-            const dateStr = order.collectionTime.split('T')[0]; // "YYYY-MM-DD"
+            const dateStr = order.collectionTime.split('T')[0];
 
             if (!grouped[dateStr]) {
                 grouped[dateStr] = {
@@ -49,7 +57,8 @@ export async function GET(req) {
                         pendingOrders: 0,
                         successOrders: 0
                     },
-                    orders: []
+                    orders: [],
+                    itemsMap: {} 
                 };
             }
 
@@ -61,6 +70,25 @@ export async function GET(req) {
             } else if (order.status === 'SUCCESS') {
                 grouped[dateStr].stats.successOrders++;
             }
+
+            for (const item of order.items || []) {
+                const itemId = item._id;
+                if (!grouped[dateStr].itemsMap[itemId]) {
+                    grouped[dateStr].itemsMap[itemId] = {
+                        itemId,
+                        name: item.name,
+                        image: item.image,
+                        quantity: 0
+                    };
+                }
+                grouped[dateStr].itemsMap[itemId].quantity += item.quantity || 1;
+            }
+        }
+
+        // Convert itemsMap to itemsSummary array for each date
+        for (const date in grouped) {
+            grouped[date].itemsSummary = Object.values(grouped[date].itemsMap);
+            delete grouped[date].itemsMap;
         }
 
         return NextResponse.json(grouped);
@@ -71,7 +99,7 @@ export async function GET(req) {
     }
 }
 
-// === CORS (Optional, if needed for frontend fetch) ===
+// === CORS (Optional) ===
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
