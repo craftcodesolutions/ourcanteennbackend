@@ -40,7 +40,7 @@ export async function GET(req) {
 
         const orders = await db.collection('orders')
             .find({
-                restaurantId: restaurant._id
+                // restaurantId: restaurant._id
             })
             .sort({ collectionTime: -1, status: -1 })
             .toArray();
