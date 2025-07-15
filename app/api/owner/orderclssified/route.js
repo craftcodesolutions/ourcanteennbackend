@@ -31,7 +31,9 @@ export async function GET(req) {
         }
 
         const orders = await db.collection('orders')
-            // .find({ userId: user.userId })
+            .find({ 
+                // userId: user.userId
+             })
             .sort({ collectionTime: -1 }) // string ISO works for sort
             .toArray();
 
