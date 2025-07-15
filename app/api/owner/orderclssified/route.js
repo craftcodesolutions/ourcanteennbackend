@@ -40,7 +40,7 @@ export async function GET(req) {
 
         const orders = await db.collection('orders')
             .find({
-                // restaurantId: restaurant._id
+                restaurantId: restaurant._id.toString(),
             })
             .sort({ collectionTime: -1, status: -1 })
             .toArray();
@@ -67,21 +67,21 @@ export async function GET(req) {
 
             if (order.status === 'PENDING') {
                 grouped[dateStr].stats.pendingOrders++;
+                // Only count quantities for PENDING orders
+                for (const item of order.items || []) {
+                    const itemId = item._id;
+                    if (!grouped[dateStr].itemsMap[itemId]) {
+                        grouped[dateStr].itemsMap[itemId] = {
+                            itemId,
+                            name: item.name,
+                            image: item.image,
+                            quantity: 0
+                        };
+                    }
+                    grouped[dateStr].itemsMap[itemId].quantity += item.quantity || 1;
+                }
             } else if (order.status === 'SUCCESS') {
                 grouped[dateStr].stats.successOrders++;
-            }
-
-            for (const item of order.items || []) {
-                const itemId = item._id;
-                if (!grouped[dateStr].itemsMap[itemId]) {
-                    grouped[dateStr].itemsMap[itemId] = {
-                        itemId,
-                        name: item.name,
-                        image: item.image,
-                        quantity: 0
-                    };
-                }
-                grouped[dateStr].itemsMap[itemId].quantity += item.quantity || 1;
             }
         }
 
