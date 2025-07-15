@@ -2,7 +2,7 @@
 # Order Classified API Documentation
 
 ## Root URL
-`/api/owner/orderclssified`
+`https://ourcanteennbackend.vercel.app`
 
 This document describes the API endpoints and logic for the `/api/owner/orderclssified` route in the OurCanteen backend.
 
@@ -88,10 +88,5 @@ CORS preflight support. Allows cross-origin requests from any origin.
 ## Notes
 - This endpoint is intended for owner users. Ensure the JWT token corresponds to a valid owner in the `users` collection.
 - The grouping is based on the `collectionTime` field, which should be an ISO date string.
-
----
-
-## Author
-CraftCode Solutions
 
 ---
