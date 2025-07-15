@@ -4,7 +4,7 @@ This document describes the API endpoints for managing and retrieving user credi
 
 ## Endpoint
 
-`/api/user/credit`
+`https://ourcanteennbackend.vercel.app/api/user/credit`
 
 ---
 
@@ -62,7 +62,3 @@ Response:
 ## Notes
 - The endpoint uses MongoDB to fetch the user's credit based on the user ID from the JWT.
 - If the user is not found or has no credit, the response will default to `0`.
-
-
-git add . 
-git commit -m '
