@@ -34,7 +34,7 @@ export async function GET(req) {
             .find({ 
                 // userId: user.userId
              })
-            .sort({ collectionTime: -1 }) // string ISO works for sort
+            .sort({ collectionTime: -1, status: -1 }) // string ISO works for sort
             .toArray();
 
         const grouped = {};
