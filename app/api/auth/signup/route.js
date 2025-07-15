@@ -82,7 +82,7 @@ export async function POST(req) {
         studentId: user.studentId,
         phoneNumber: user.phoneNumber,
         isOwner: false,
-        stuff: null
+        staff: null
       }
     }, { status: 201 });
 
