@@ -55,6 +55,16 @@ export async function POST(req) {
             })
 
         let order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
+        // Fetch customer to check credit
+        const customer = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        
+        if (!customer) {
+            return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+        }
+
+        if (Number(customer.credit) < Number(order.total)) {
+            return NextResponse.json({ error: 'insufficient balance on user' }, { status: 406 });
+        }
 
         if (!restaurant) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
