@@ -63,6 +63,9 @@ export async function POST(req) {
         const topupDoc = {
             topupMaker: owner.userId,
             userId: targetUser._id.toString(),
+            name: targetUser.name || '',
+            phoneNumber: targetUser.phoneNumber || '',
+            email: targetUser.email || '',
             amount: Number(amount),
             createdAt: new Date()
         };
@@ -76,6 +79,36 @@ export async function POST(req) {
         );
 
         // Get all topup instances by owner
+        const allTopups = await db.collection('topup').find({ topupMaker: owner.userId }).toArray();
+
+        return NextResponse.json({ success: true, allTopups }, { status: 200 });
+    } catch (err) {
+        console.error(err);
+        const status = err.status || 500;
+        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+    }
+}
+
+
+// === GET: Get all topup transactions for the authenticated staff or owner ===
+export async function GET(req) {
+    try {
+        const owner = await authenticate(req);
+        const db = (await clientPromise).db();
+
+        // Owner/staff check
+        const ownerRecord = await db.collection('users').findOne({
+            _id: new ObjectId(owner.userId),
+            $or: [
+                { isOwner: true },
+                { 'staff.isStaff': true }
+            ]
+        });
+        if (!ownerRecord) {
+            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
+        }
+
+        // Get all topup transactions made by this owner/staff
         const allTopups = await db.collection('topup').find({ topupMaker: owner.userId }).toArray();
 
         return NextResponse.json({ success: true, allTopups }, { status: 200 });

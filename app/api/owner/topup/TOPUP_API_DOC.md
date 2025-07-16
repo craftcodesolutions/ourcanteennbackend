@@ -61,6 +61,7 @@ Or by email:
 
 ---
 
+
 ## Response
 - **Success (200):**
 
@@ -72,6 +73,9 @@ Or by email:
       "_id": "...",
       "topupMaker": "...",
       "userId": "...",
+      "name": "<targetUserName>",
+      "phoneNumber": "<targetUserPhone>",
+      "email": "<targetUserEmail>",
       "amount": 100,
       "createdAt": "2025-07-17T12:34:56.789Z"
     },
@@ -90,7 +94,6 @@ Or by email:
 
 ---
 
-## Error Codes
 | Status | Message                        | Description                                 |
 |--------|--------------------------------|---------------------------------------------|
 | 400    | key, type, and amount are required | Missing required fields                     |
@@ -99,6 +102,54 @@ Or by email:
 | 401    | You are not Owner or Staff     | Authenticated user is not owner/staff        |
 | 404    | User not found                 | No user matches the provided key/type        |
 | 500    | Server error                   | Internal server error                        |
+
+## Error Codes
+| Status | Message                        | Description                                 |
+|--------|--------------------------------|---------------------------------------------|
+| 400    | key, type, and amount are required | Missing required fields                     |
+| 400    | Invalid type                   | type must be one of userId, phoneNumber, email |
+| 401    | Access token required          | No JWT token provided                       |
+| 401    | You are not Owner or Staff     | Authenticated user is not owner/staff        |
+| 403    | Invalid or expired token       | JWT token is invalid or expired              |
+| 404    | User not found                 | No user matches the provided key/type        |
+| 500    | Server error                   | Internal server error                        |
+
+---
+
+
+---
+
+## GET /api/owner/topup
+
+Get all topup transactions made by the authenticated owner or staff.
+
+### Authentication
+- Requires a valid JWT token in the `Authorization` header.
+
+### Response
+```
+{
+  "success": true,
+  "allTopups": [
+    {
+      "_id": "...",
+      "topupMaker": "...",
+      "userId": "...",
+      "name": "<targetUserName>",
+      "phoneNumber": "<targetUserPhone>",
+      "email": "<targetUserEmail>",
+      "amount": 100,
+      "createdAt": "2025-07-17T12:34:56.789Z"
+    },
+    // ...more topup records
+  ]
+}
+```
+
+### Errors
+- 401: You are not Owner or Staff
+- 403: Invalid or expired token
+- 500: Server error
 
 ---
 
