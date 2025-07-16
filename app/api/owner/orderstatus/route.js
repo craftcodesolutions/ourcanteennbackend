@@ -57,7 +57,7 @@ export async function POST(req) {
         let order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId: userId });
         // Fetch customer to check credit
         const customer = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-        
+
         if (!customer) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
@@ -180,8 +180,13 @@ export async function PUT(req) {
                 if (orderUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update order status' };
             });
         } finally {
+
             await session.endSession();
+            console.log('Transaction result:', transactionResult);
         }
+
+        console.log('Transaction result:', transactionResult);
+
         if (transactionResult === undefined || transactionResult === false) {
             return NextResponse.json({ error: 'Transaction failed, no changes applied.' }, { status: 500 });
         }
