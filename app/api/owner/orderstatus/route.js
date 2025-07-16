@@ -163,6 +163,7 @@ export async function PUT(req) {
         // Use a transaction to ensure both updates are atomic
         const session = (await clientPromise).startSession();
         let transactionResult;
+
         try {
             transactionResult = await session.withTransaction(async () => {
                 const userUpdate = await db.collection('users').updateOne(
@@ -178,9 +179,9 @@ export async function PUT(req) {
                     { session }
                 );
                 if (orderUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update order status' };
+                return true;
             });
         } finally {
-
             await session.endSession();
             console.log('Transaction result:', transactionResult);
         }
