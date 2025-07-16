@@ -81,7 +81,34 @@ export async function POST(req) {
         // Get all topup instances by owner
         const allTopups = await db.collection('topup').find({ topupMaker: owner.userId }).toArray();
 
-        return NextResponse.json({ success: true, allTopups }, { status: 200 });
+        // Group topups by day
+        const groupedByDay = {};
+        allTopups.forEach(topup => {
+            // Format date as YYYY-MM-DD
+            const date = new Date(topup.createdAt);
+            const dayStr = date.toISOString().slice(0, 10);
+            if (!groupedByDay[dayStr]) {
+                groupedByDay[dayStr] = {
+                    date: dayStr,
+                    totalAmount: 0,
+                    count: 0,
+                    topups: []
+                };
+            }
+            groupedByDay[dayStr].topups.push(topup);
+            groupedByDay[dayStr].totalAmount += Number(topup.amount);
+            groupedByDay[dayStr].count += 1;
+        });
+
+        // Sort each day's topups by createdAt (newest first)
+        Object.values(groupedByDay).forEach(day => {
+            day.topups.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        });
+
+        // Convert grouped object to array sorted by date descending
+        const days = Object.values(groupedByDay).sort((a, b) => b.date.localeCompare(a.date));
+
+        return NextResponse.json({ success: true, days }, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
@@ -111,7 +138,34 @@ export async function GET(req) {
         // Get all topup transactions made by this owner/staff
         const allTopups = await db.collection('topup').find({ topupMaker: owner.userId }).toArray();
 
-        return NextResponse.json({ success: true, allTopups }, { status: 200 });
+        // Group topups by day
+        const groupedByDay = {};
+        allTopups.forEach(topup => {
+            // Format date as YYYY-MM-DD
+            const date = new Date(topup.createdAt);
+            const dayStr = date.toISOString().slice(0, 10);
+            if (!groupedByDay[dayStr]) {
+                groupedByDay[dayStr] = {
+                    date: dayStr,
+                    totalAmount: 0,
+                    count: 0,
+                    topups: []
+                };
+            }
+            groupedByDay[dayStr].topups.push(topup);
+            groupedByDay[dayStr].totalAmount += Number(topup.amount);
+            groupedByDay[dayStr].count += 1;
+        });
+
+        // Sort each day's topups by createdAt (newest first)
+        Object.values(groupedByDay).forEach(day => {
+            day.topups.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        });
+
+        // Convert grouped object to array sorted by date descending
+        const days = Object.values(groupedByDay).sort((a, b) => b.date.localeCompare(a.date));
+
+        return NextResponse.json({ success: true, days }, { status: 200 });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;

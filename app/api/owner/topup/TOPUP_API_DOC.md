@@ -68,21 +68,40 @@ Or by email:
 ```
 {
   "success": true,
-  "allTopups": [
+  "days": [
     {
-      "_id": "...",
-      "topupMaker": "...",
-      "userId": "...",
-      "name": "<targetUserName>",
-      "phoneNumber": "<targetUserPhone>",
-      "email": "<targetUserEmail>",
-      "amount": 100,
-      "createdAt": "2025-07-17T12:34:56.789Z"
+      "date": "YYYY-MM-DD",
+      "totalAmount": 300,
+      "count": 2,
+      "topups": [
+        {
+          "_id": "...",
+          "topupMaker": "...",
+          "userId": "...",
+          "name": "<targetUserName>",
+          "phoneNumber": "<targetUserPhone>",
+          "email": "<targetUserEmail>",
+          "amount": 200,
+          "createdAt": "2025-07-17T15:00:00.000Z"
+        },
+        {
+          "_id": "...",
+          "topupMaker": "...",
+          "userId": "...",
+          "name": "<targetUserName>",
+          "phoneNumber": "<targetUserPhone>",
+          "email": "<targetUserEmail>",
+          "amount": 100,
+          "createdAt": "2025-07-17T12:34:56.789Z"
+        }
+      ]
     },
-    // ...more topup records
+    // ...more days
   ]
 }
 ```
+
+Each day's `topups` are sorted by `createdAt` (newest first). The array `days` is sorted by `date` (newest first).
 
 - **Error:**
 
@@ -130,21 +149,40 @@ Get all topup transactions made by the authenticated owner or staff.
 ```
 {
   "success": true,
-  "allTopups": [
+  "days": [
     {
-      "_id": "...",
-      "topupMaker": "...",
-      "userId": "...",
-      "name": "<targetUserName>",
-      "phoneNumber": "<targetUserPhone>",
-      "email": "<targetUserEmail>",
-      "amount": 100,
-      "createdAt": "2025-07-17T12:34:56.789Z"
+      "date": "YYYY-MM-DD",
+      "totalAmount": 300,
+      "count": 2,
+      "topups": [
+        {
+          "_id": "...",
+          "topupMaker": "...",
+          "userId": "...",
+          "name": "<targetUserName>",
+          "phoneNumber": "<targetUserPhone>",
+          "email": "<targetUserEmail>",
+          "amount": 200,
+          "createdAt": "2025-07-17T15:00:00.000Z"
+        },
+        {
+          "_id": "...",
+          "topupMaker": "...",
+          "userId": "...",
+          "name": "<targetUserName>",
+          "phoneNumber": "<targetUserPhone>",
+          "email": "<targetUserEmail>",
+          "amount": 100,
+          "createdAt": "2025-07-17T12:34:56.789Z"
+        }
+      ]
     },
-    // ...more topup records
+    // ...more days
   ]
 }
 ```
+
+Each day's `topups` are sorted by `createdAt` (newest first). The array `days` is sorted by `date` (newest first).
 
 ### Errors
 - 401: You are not Owner or Staff
