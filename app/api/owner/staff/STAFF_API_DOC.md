@@ -41,20 +41,49 @@ Add a staff member to the owner's restaurant by email.
         "_id": "...",
         "name": "Staff",
         "email": "staff@s.s",
-        ...
       }
       // more staff objects
     ]
   }
   ```
-- **Errors:**
   - `400`: Staff email is required
   - `404`: Staff user not found or restaurant not found for owner
   - `401/403/500`: Auth or server errors
 
 ---
 
-## GET `/api/owner/staff`
+## DELETE `/api/owner/staff`
+Remove a staff member from the owner's restaurant.
+
+### Request
+- **Headers:**
+  - `Authorization: Bearer <token>`
+- **Body (JSON):**
+  ```json
+  {
+    "staffId": "687658b6cdd738da3d1ea55e"
+  }
+  ```
+
+### Behavior
+- Finds the restaurant by ownerId.
+- Removes the staff user from the restaurant's `staff` array.
+- Updates the user document to set `staff.isStaff: false` and `staff.access: 'N'`.
+- Returns the updated staff list for the restaurant.
+
+### Response
+- **Status:** `200 OK`
+- **Body:**
+  ```json
+  {
+    "staff": [ /* updated staff objects */ ]
+  }
+  ```
+- **Errors:**
+  - `400`: Staff ID is required
+  - `404`: Restaurant not found for owner
+  - `401/403/500`: Auth or server errors
+
 Get all staff members for the authenticated owner's restaurant.
 
 ### Request
