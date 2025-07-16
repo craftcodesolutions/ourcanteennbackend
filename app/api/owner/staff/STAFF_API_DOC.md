@@ -19,16 +19,20 @@ Add a staff member to the owner's restaurant by email.
 - **Headers:**
   - `Authorization: Bearer <token>`
 - **Body (JSON):**
+
   ```json
   {
-    "email": "staff@s.s"
+    "email": "staff@s.s",
+    "topupAccess": true
   }
   ```
+
 
 ### Behavior
 - Finds the user by email.
 - Adds the user's `userId` to the restaurant's `staff` array.
-- Updates the user document to set `staff.isStaff: true` and `staff.access: 'A'`.
+- Updates the user document to set `staff.isStaff: true`.
+- Sets `staff.access` to `'A'` if `topupAccess` is true, otherwise `'Z'`.
 - Returns the full staff list for the restaurant.
 
 ### Response
