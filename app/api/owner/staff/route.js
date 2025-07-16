@@ -49,7 +49,7 @@ export async function POST(req) {
     try {
         const user = await authenticate(req);
         const body = await req.json();
-        const { email } = body;
+        const { email, topupAccess } = body;
         if (!email) {
             return NextResponse.json({ error: 'Staff email is required' }, { status: 400 });
         }
@@ -72,7 +72,7 @@ export async function POST(req) {
         // Update staff user doc
         await db.collection('users').updateOne(
             { _id: staffUser._id },
-            { $set: { 'staff.isStaff': true, 'staff.access': 'A', updatedAt: new Date() } }
+            { $set: { 'staff.isStaff': true, 'staff.access': topupAccess ? 'A' : 'N', updatedAt: new Date() } }
         );
         // Get updated restaurant doc
         const updatedRestaurant = await db.collection('restaurants').findOne({ _id: restaurant._id });
