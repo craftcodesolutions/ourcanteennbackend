@@ -28,7 +28,8 @@ PATCH /api/user/order
 ```
 {
   "message": "Order cancelled",
-  "order": { ...updated order object... }
+  "order": { ...updated order object... },
+  "orders": [ ...array of all user's orders... ]
 }
 ```
 
@@ -71,3 +72,4 @@ PATCH /api/user/order
 - Only the user who created the order can cancel it.
 - Orders that are already cancelled cannot be cancelled again.
 - The order status will be set to `CANCELLED` and `updatedAt` will be updated.
+- The response now includes an `orders` array containing all of the authenticated user's orders (same as the GET endpoint).

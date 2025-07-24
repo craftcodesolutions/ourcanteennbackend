@@ -102,7 +102,9 @@ export async function PATCH(req) {
         if (!result.value) {
             return NextResponse.json({ error: 'Order not found or already cancelled' }, { status: 404 });
         }
-        return NextResponse.json({ message: 'Order cancelled', order: result.value });
+        // After cancelling, return all orders for the user (like GET)
+        const orders = await db.collection('orders').find({ userId: user.userId }).sort({ createdAt: -1 }).toArray();
+        return NextResponse.json({ message: 'Order cancelled', order: result.value, orders });
     } catch (err) {
         console.error(err);
         const status = err.status || 500;
