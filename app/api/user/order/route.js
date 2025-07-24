@@ -93,15 +93,22 @@ export async function PATCH(req) {
             return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
         }
         const orderObjectId = new ObjectId(orderId);
-        // Only allow cancelling if the order belongs to the user and is not already cancelled
+        // First, check if the order exists and belongs to the user
+        const order = await db.collection('orders').findOne({ _id: orderObjectId, userId: user.userId });
+        if (!order) {
+            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+        }
+        // If already cancelled, return regular response (not error)
+        if (order.status === 'CANCELLED') {
+            const orders = await db.collection('orders').find({ userId: user.userId }).sort({ createdAt: -1 }).toArray();
+            return NextResponse.json({ message: 'Order already cancelled', order, orders });
+        }
+        // Now cancel the order
         const result = await db.collection('orders').findOneAndUpdate(
-            { _id: orderObjectId, userId: user.userId, status: { $ne: 'CANCELLED' } },
+            { _id: orderObjectId },
             { $set: { status: 'CANCELLED', updatedAt: new Date() } },
             { returnDocument: 'after' }
         );
-        if (!result.value) {
-            return NextResponse.json({ error: 'Order not found or already cancelled' }, { status: 404 });
-        }
         // After cancelling, return all orders for the user (like GET)
         const orders = await db.collection('orders').find({ userId: user.userId }).sort({ createdAt: -1 }).toArray();
         return NextResponse.json({ message: 'Order cancelled', order: result.value, orders });
