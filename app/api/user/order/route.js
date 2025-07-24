@@ -80,3 +80,32 @@ export async function OPTIONS() {
         },
     });
 }
+
+
+// === PATCH: Cancel an order for the authenticated user ===
+export async function PATCH(req) {
+    try {
+        const user = await authenticate(req);
+        const db = (await clientPromise).db();
+        const body = await req.json();
+        const { orderId } = body;
+        if (!orderId) {
+            return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
+        }
+        const orderObjectId = new ObjectId(orderId);
+        // Only allow cancelling if the order belongs to the user and is not already cancelled
+        const result = await db.collection('orders').findOneAndUpdate(
+            { _id: orderObjectId, userId: user.userId, status: { $ne: 'CANCELLED' } },
+            { $set: { status: 'CANCELLED', updatedAt: new Date() } },
+            { returnDocument: 'after' }
+        );
+        if (!result.value) {
+            return NextResponse.json({ error: 'Order not found or already cancelled' }, { status: 404 });
+        }
+        return NextResponse.json({ message: 'Order cancelled', order: result.value });
+    } catch (err) {
+        console.error(err);
+        const status = err.status || 500;
+        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+    }
+}
