@@ -19,24 +19,31 @@ async function authenticate(req) {
     }
 }
 
+// === Helper: Get staff list for a restaurant ===
+async function getStaffList(db, restaurant) {
+    const staffArray = restaurant.staff || [];
+    const staffIds = staffArray.map(s => s.sid);
+    let staffList = staffIds.length > 0
+        ? await db.collection('users').find({ _id: { $in: staffIds } }).toArray()
+        : [];
+    staffList = staffList.map(user => {
+        const staffObj = staffArray.find(s => String(s.sid) === String(user._id));
+        return { ...user, isActive: staffObj ? staffObj.isActive : undefined };
+    });
+    staffList.sort((a, b) => (b.isActive === true) - (a.isActive === true));
+    return staffList;
+}
+
 // === GET: Get all staff for owner's restaurant ===
 export async function GET(req) {
     try {
         const user = await authenticate(req);
         const db = (await clientPromise).db();
-        // Find restaurant by ownerId
         const restaurant = await db.collection('restaurants').findOne({ ownerId: new ObjectId(user.userId) });
         if (!restaurant) {
             return NextResponse.json({ error: 'Restaurant not found for owner' }, { status: 404 });
         }
-        // Get all staff userIds from restaurant.staff array
-        const staffArray = restaurant.staff || [];
-        const staffIds = staffArray.map(s => s.sid);
-        // Find all staff user docs
-        const staffList = staffIds.length > 0
-            ? await db.collection('users').find({ _id: { $in: staffIds } }).toArray()
-            : [];
-        // Return staff list
+        const staffList = await getStaffList(db, restaurant);
         return NextResponse.json({ staff: staffList }, { status: 200 });
     } catch (err) {
         console.error(err);
@@ -45,7 +52,7 @@ export async function GET(req) {
     }
 }
 
-// === POST: Create restaurant (same as before) ===
+// === POST: Add staff to restaurant ===
 export async function POST(req) {
     try {
         const user = await authenticate(req);
@@ -55,36 +62,24 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Staff email is required' }, { status: 400 });
         }
         const db = (await clientPromise).db();
-        // Find staff user by email
         const staffUser = await db.collection('users').findOne({ email: email.trim() });
         if (!staffUser) {
             return NextResponse.json({ error: 'Staff user not found' }, { status: 404 });
         }
-        // Find restaurant by ownerId
         const restaurant = await db.collection('restaurants').findOne({ ownerId: new ObjectId(user.userId) });
         if (!restaurant) {
             return NextResponse.json({ error: 'Restaurant not found for owner' }, { status: 404 });
         }
-        // Add staff userId to restaurant staff array
         await db.collection('restaurants').updateOne(
             { _id: restaurant._id },
-            { $addToSet: { staff: { sid: staffUser._id } }, $set: { updatedAt: new Date() } }
+            { $addToSet: { staff: { sid: staffUser._id, isActive: true } }, $set: { updatedAt: new Date() } }
         );
-        // Update staff user doc
         await db.collection('users').updateOne(
             { _id: staffUser._id },
             { $set: { 'staff.isStaff': true, 'staff.access': topupAccess ? 'A' : 'Z', updatedAt: new Date() } }
         );
-        // Get updated restaurant doc
         const updatedRestaurant = await db.collection('restaurants').findOne({ _id: restaurant._id });
-        // Get all staff userIds from restaurant.staff array
-        const staffArray = updatedRestaurant.staff || [];
-        const staffIds = staffArray.map(s => s.sid);
-        // Find all staff user docs
-        const staffList = staffIds.length > 0
-            ? await db.collection('users').find({ _id: { $in: staffIds } }).toArray()
-            : [];
-        // Return staff list
+        const staffList = await getStaffList(db, updatedRestaurant);
         return NextResponse.json({ staff: staffList }, { status: 200 });
     } catch (err) {
         console.error(err);
@@ -93,6 +88,39 @@ export async function POST(req) {
     }
 }
 
+// === PATCH: Edit staff access for owner's restaurant ===
+export async function PATCH(req) {
+    try {
+        const user = await authenticate(req);
+        const body = await req.json();
+        const { staffId, topupAccess } = body;
+        if (!staffId) {
+            return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
+        }
+        const db = (await clientPromise).db();
+        const restaurant = await db.collection('restaurants').findOne({ ownerId: new ObjectId(user.userId) });
+        if (!restaurant) {
+            return NextResponse.json({ error: 'Restaurant not found for owner' }, { status: 404 });
+        }
+        // Update staff access in restaurant staff array
+        await db.collection('restaurants').updateOne(
+            { _id: restaurant._id, "staff.sid": new ObjectId(staffId) },
+            { $set: { "staff.$.isActive": true, updatedAt: new Date() } }
+        );
+        // Update staff access in user document
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(staffId) },
+            { $set: { 'staff.isStaff': true, 'staff.access': topupAccess ? 'A' : 'Z', updatedAt: new Date() } }
+        );
+        const updatedRestaurant = await db.collection('restaurants').findOne({ _id: restaurant._id });
+        const staffList = await getStaffList(db, updatedRestaurant);
+        return NextResponse.json({ staff: staffList }, { status: 200 });
+    } catch (err) {
+        console.error(err);
+        const status = err.status || 500;
+        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+    }
+}
 
 // === CORS ===
 export async function OPTIONS() {
@@ -116,31 +144,20 @@ export async function DELETE(req) {
             return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
         }
         const db = (await clientPromise).db();
-        // Find restaurant by ownerId
         const restaurant = await db.collection('restaurants').findOne({ ownerId: new ObjectId(user.userId) });
         if (!restaurant) {
             return NextResponse.json({ error: 'Restaurant not found for owner' }, { status: 404 });
         }
-        // Remove staff from restaurant.staff array
         await db.collection('restaurants').updateOne(
-            { _id: restaurant._id },
-            { $pull: { staff: { sid: new ObjectId(staffId) } }, $set: { updatedAt: new Date() } }
+            { _id: restaurant._id, "staff.sid": new ObjectId(staffId) },
+            { $set: { "staff.$.isActive": false, updatedAt: new Date() } }
         );
-        // Update staff user doc
         await db.collection('users').updateOne(
             { _id: new ObjectId(staffId) },
             { $set: { 'staff.isStaff': false, 'staff.access': 'N', updatedAt: new Date() } }
         );
-        // Get updated restaurant doc
         const updatedRestaurant = await db.collection('restaurants').findOne({ _id: restaurant._id });
-        // Get all staff userIds from restaurant.staff array
-        const staffArray = updatedRestaurant.staff || [];
-        const staffIds = staffArray.map(s => s.sid);
-        // Find all staff user docs
-        const staffList = staffIds.length > 0
-            ? await db.collection('users').find({ _id: { $in: staffIds } }).toArray()
-            : [];
-        // Return updated staff list
+        const staffList = await getStaffList(db, updatedRestaurant);
         return NextResponse.json({ staff: staffList }, { status: 200 });
     } catch (err) {
         console.error(err);

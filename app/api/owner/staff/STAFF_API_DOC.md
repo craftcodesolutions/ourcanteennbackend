@@ -1,5 +1,18 @@
 # Owner Staff API Documentation
 
+## Response Convention
+All API responses follow this convention:
+
+- On success: returns a JSON object with the relevant data (e.g., `{ "staff": [...] }`).
+- On error: returns a JSON object with an `error` field describing the issue, and an appropriate HTTP status code. Example:
+  ```json
+  {
+    "error": "Description of the error"
+  }
+  ```
+
+See each endpoint for specific response details.
+
 This API allows restaurant owners to manage their staff by adding staff members and retrieving the list of all staff for their restaurant.
 
 ## Authentication
@@ -9,6 +22,40 @@ Authorization: Bearer <token>
 ```
 
 root url - https://ourcanteennbackend.vercel.app/
+
+
+## PATCH `/api/owner/staff`
+Edit staff access for a staff member in the owner's restaurant.
+
+### Request
+- **Headers:**
+  - `Authorization: Bearer <token>`
+- **Body (JSON):**
+  ```json
+  {
+    "staffId": "687658b6cdd738da3d1ea55e",
+    "topupAccess": true
+  }
+  ```
+
+### Behavior
+- Finds the restaurant by ownerId.
+- Updates the staff member's access in the restaurant's `staff` array and the user document.
+- Sets `staff.isStaff: true` and `staff.access` to `'A'` if `topupAccess` is true, otherwise `'Z'`.
+- Returns the updated staff list for the restaurant.
+
+### Response
+- **Status:** `200 OK`
+- **Body:**
+  ```json
+  {
+    "staff": [ /* updated staff objects */ ]
+  }
+  ```
+- **Errors:**
+  - `400`: Staff ID is required
+  - `404`: Restaurant not found for owner
+  - `401/403/500`: Auth or server errors
 
 ---
 
