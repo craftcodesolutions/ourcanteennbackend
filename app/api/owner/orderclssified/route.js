@@ -60,7 +60,8 @@ export async function GET(req) {
                     stats: {
                         totalOrders: 0,
                         pendingOrders: 0,
-                        successOrders: 0
+                        successOrders: 0,
+                        cancelledOrders: 0
                     },
                     orders: [],
                     itemsMap: {}
@@ -87,6 +88,8 @@ export async function GET(req) {
                 }
             } else if (order.status === 'SUCCESS') {
                 grouped[dateStr].stats.successOrders++;
+            } else if (order.status === 'CANCELLED') {
+                grouped[dateStr].stats.cancelledOrders++;
             }
         }
 

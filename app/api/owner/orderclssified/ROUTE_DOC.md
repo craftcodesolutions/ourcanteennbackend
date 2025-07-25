@@ -24,7 +24,7 @@ Retrieves all orders for the authenticated owner's restaurant, grouped by collec
 
 #### Response
 - **200 OK**: JSON object where each key is a date (`YYYY-MM-DD`), and the value contains:
-  - `stats`: Object with `totalOrders`, `pendingOrders`, `successOrders` for that date.
+  - `stats`: Object with `totalOrders`, `pendingOrders`, `successOrders`, `cancelledOrders` for that date.
   - `orders`: Array of order objects for that date (only for the authenticated owner's restaurant).
   - `itemsSummary`: Array summarizing the total quantity of each item ordered on that date. Each item includes `itemId`, `name`, `image`, and `quantity`.
 - **401 Unauthorized**: If the user is not found or not an owner.
@@ -38,7 +38,8 @@ Retrieves all orders for the authenticated owner's restaurant, grouped by collec
     "stats": {
       "totalOrders": 3,
       "pendingOrders": 1,
-      "successOrders": 2
+      "successOrders": 2,
+      "cancelledOrders": 0
     },
     "orders": [
       { /* order object */ },
@@ -73,6 +74,7 @@ Retrieves all orders for the authenticated owner's restaurant, grouped by collec
   - `totalOrders`: Total number of orders for that date.
   - `pendingOrders`: Orders with status `PENDING`.
   - `successOrders`: Orders with status `SUCCESS`.
+  - `cancelledOrders`: Orders with status `CANCELLED`.
   - `itemsSummary`: Array of items with total quantity per item for that date. Each item includes `itemId`, `name`, `image`, and `quantity`.
 
 ---
