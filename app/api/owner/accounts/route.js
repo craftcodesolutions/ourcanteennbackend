@@ -127,14 +127,26 @@ export async function GET(req) {
             memberIds.forEach(member => {
                 const memberTopups = topupTracks.filter(track => track.topupMaker === member.id && track.createdAt && new Date(track.createdAt).toISOString().slice(0, 10) === day);
                 const memberOrders = ordersTracks.filter(track => track.succeededBy === member.id && track.updatedAt && new Date(track.updatedAt).toISOString().slice(0, 10) === day);
-                categorizedByDate[day][member.id] = {
-                    info: {
-                        ...member,
-                        ...(userDetailsMap[member.id] || {})
-                    },
-                    topupTracks: memberTopups,
-                    ordersTracks: memberOrders
-                };
+            // Calculate stats for topups
+            const topupStat = {
+                count: memberTopups.length,
+                amount: memberTopups.reduce((sum, t) => sum + (typeof t.amount === 'number' ? t.amount : 0), 0)
+            };
+            // Calculate stats for orders
+            const orderStat = {
+                count: memberOrders.length,
+                amount: memberOrders.reduce((sum, o) => sum + (typeof o.amount === 'number' ? o.amount : 0), 0)
+            };
+            categorizedByDate[day][member.id] = {
+                info: {
+                    ...member,
+                    ...(userDetailsMap[member.id] || {})
+                },
+                topupTracks: memberTopups,
+                ordersTracks: memberOrders,
+                topupStat,
+                orderStat
+            };
             });
         });
 
