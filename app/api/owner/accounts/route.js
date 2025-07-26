@@ -129,7 +129,7 @@ export async function GET(req) {
 
                 const orderStat = {
                     count: memberOrders.length,
-                    amount: memberOrders.reduce((sum, o) => sum + (typeof o.amount === 'number' ? o.amount : 0), 0)
+                    amount: memberOrders.reduce((sum, o) => sum + (typeof o.total === 'number' ? o.total : 0), 0)
                 };
 
                 categorizedByDate[day][member.id] = {
