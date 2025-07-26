@@ -175,7 +175,13 @@ export async function PUT(req) {
 
                 const orderUpdate = await db.collection('orders').updateOne(
                     { _id: new ObjectId(orderId), userId: userId },
-                    { $set: { status: 'SUCCESS', succeededBy: user.userId } },
+                    {
+                        $set: {
+                            status: 'SUCCESS',
+                            succeededBy: user.userId,
+                            updatedAt: new Date()
+                        }
+                    },
                     { session }
                 );
                 if (orderUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update order status' };
