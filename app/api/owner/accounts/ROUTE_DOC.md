@@ -1,5 +1,8 @@
 # Owner Accounts API Route Documentation
 
+## Base URL
+`https://ourcanteennbackend.vercel.app`
+
 ## Endpoint
 
 `GET /api/owner/accounts`
