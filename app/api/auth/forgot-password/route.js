@@ -5,10 +5,10 @@ import clientPromise from '@/lib/mongodb';
 // Create email transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail', // You can change this to your preferred email service
+    service: 'gmail', 
     auth: {
-      user: process.env.EMAIL_USER, // Your email
-      pass: process.env.EMAIL_PASSWORD, // Your email app password
+      user: process.env.EMAIL_USER, 
+      pass: process.env.EMAIL_PASSWORD, 
     },
   });
 };
