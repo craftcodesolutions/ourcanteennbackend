@@ -4,7 +4,7 @@ import clientPromise from '@/lib/mongodb';
 
 // Create email transporter
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail', // You can change this to your preferred email service
     auth: {
       user: process.env.EMAIL_USER, // Your email
