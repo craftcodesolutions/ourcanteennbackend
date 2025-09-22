@@ -103,6 +103,10 @@ export async function PATCH(req) {
             const orders = await db.collection('orders').find({ userId: user.userId }).sort({ createdAt: -1 }).toArray();
             return NextResponse.json({ message: 'Order already cancelled', order, orders });
         }
+        // Cannot cancel SUCCESS orders (food already taken)
+        if (order.status === 'SUCCESS') {
+            return NextResponse.json({ error: 'Cannot cancel completed orders. Food has already been received.' }, { status: 400 });
+        }
         // Now cancel the order
         const result = await db.collection('orders').findOneAndUpdate(
             { _id: orderObjectId },
