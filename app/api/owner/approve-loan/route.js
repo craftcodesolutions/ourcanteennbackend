@@ -88,33 +88,32 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Loan amount must match order total' }, { status: 400 });
         }
 
-        // Use a transaction to ensure both loan approval and order processing are atomic
+        // Use a transaction to ensure both operations are atomic
         const session = (await clientPromise).startSession();
         let transactionResult;
 
         try {
             transactionResult = await session.withTransaction(async () => {
-                // Create loan record
-                const loanDoc = {
+                // Create negative topup instance for loan
+                const loanTopupDoc = {
+                    topupMaker: user.userId,
                     userId: userId,
+                    name: customer.name || '',
+                    phoneNumber: customer.phoneNumber || '',
+                    email: customer.email || '',
+                    amount: -Number(order.total), // Negative amount for loan
+                    type: 'LOAN',
                     orderId: orderId,
-                    amount: Number(loanAmount),
-                    approvedBy: user.userId,
-                    approvedByType: userRecord.isOwner ? 'OWNER' : 'STAFF',
-                    restaurantId: restaurant._id.toString(),
-                    customerName: customer.name || '',
-                    customerEmail: customer.email || '',
-                    customerPhone: customer.phoneNumber || '',
-                    status: 'APPROVED',
+                    description: `Loan for Order #${orderId.slice(-8).toUpperCase()}`,
                     createdAt: new Date()
                 };
 
-                await db.collection('loans').insertOne(loanDoc, { session });
+                await db.collection('topup').insertOne(loanTopupDoc, { session });
 
-                // Add loan amount to customer's credit (effectively giving them the loan)
+                // Deduct order amount from customer's credit (can go negative)
                 const creditUpdate = await db.collection('users').updateOne(
                     { _id: new ObjectId(userId) },
-                    { $inc: { credit: Number(loanAmount) } },
+                    { $inc: { credit: -Number(order.total) } },
                     { session }
                 );
 
@@ -122,15 +121,19 @@ export async function POST(req) {
                     throw { status: 500, error: 'Failed to update customer credit' };
                 }
 
-                // Update order status to SCANNED (since they now have the funds)
+                // Update order status to SUCCESS immediately (loan completes the order)
                 const orderUpdate = await db.collection('orders').updateOne(
                     { _id: new ObjectId(orderId), userId: userId },
                     { 
                         $set: { 
-                            status: 'SCANNED', 
+                            status: 'SUCCESS', 
                             scannedBy: user.userId,
+                            succeededBy: user.userId,
                             loanApproved: true,
+                            loanAmount: Number(loanAmount),
                             loanApprovedBy: user.userId,
+                            loanApprovedAt: new Date(),
+                            loanCompletedAt: new Date(),
                             updatedAt: new Date()
                         } 
                     },
@@ -148,7 +151,7 @@ export async function POST(req) {
         }
 
         if (transactionResult === undefined || transactionResult === false) {
-            return NextResponse.json({ error: 'Transaction failed, no changes applied.' }, { status: 500 });
+            return NextResponse.json({ error: 'Loan approval transaction failed, no changes applied.' }, { status: 500 });
         }
 
         // Fetch updated order for response
@@ -159,9 +162,8 @@ export async function POST(req) {
 
         return NextResponse.json({ 
             success: true, 
-            message: 'Loan approved successfully',
-            order: updatedOrder,
-            loanAmount: Number(loanAmount)
+            message: 'Loan approved and order completed',
+            order: updatedOrder
         }, { status: 200 });
 
     } catch (err) {

@@ -16,13 +16,15 @@ Create a new order for the authenticated user.
     - `_id`: Product ID (required)
     - `price`: Price per item (required)
     - `quantity`: Quantity (optional, defaults to 1)
+- `collectionTime`: ISO string for when customer will collect the order (required)
 - Example:
   ```json
   {
     "cart": [
       { "_id": "abc123", "price": 50, "quantity": 2 },
       { "_id": "def456", "price": 25 }
-    ]
+    ],
+    "collectionTime": "2025-07-03T16:00:00.000Z"
   }
   ```
 
@@ -35,9 +37,17 @@ Create a new order for the authenticated user.
       "orderId": "<orderId>",
       "order": {
         "userId": "<userId>",
+        "restaurantId": "<restaurantId>",
         "items": cart,
         "total": 125,
         "status": "PENDING",
+        "collectionTime": "2025-07-03T16:00:00.000Z",
+        "userInfo": {
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phoneNumber": "+1234567890",
+          "studentId": "STU001"
+        },
         "createdAt": "2025-07-03T12:00:00.000Z",
         "updatedAt": "2025-07-03T12:00:00.000Z"
       }
@@ -62,6 +72,12 @@ Content-Type: application/json
   "cart": [
     { "_id": "abc123", "price": 50, "quantity": 2 },
     { "_id": "def456", "price": 25 }
-  ]
+  ],
+  "collectionTime": "2025-07-03T16:00:00.000Z"
 }
 ```
+
+## Notes
+- The order now includes `userInfo` with customer details (name, email, phone, studentId) for admin/staff convenience
+- `collectionTime` is used for penalty calculations and pickup scheduling
+- User information is automatically fetched from the authenticated user's profile

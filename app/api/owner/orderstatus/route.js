@@ -62,7 +62,12 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
-        if (Number(customer.credit) < Number(order.total)) {
+        // Check if order already has a loan approved
+        if (order.loanApproved) {
+            // Loan was approved, proceed normally without credit check
+            console.log('Order has approved loan, proceeding with scan');
+        } else if (Number(customer.credit) < Number(order.total)) {
+            // Insufficient balance and no loan approved
             return NextResponse.json({ error: 'insufficient balance on user' }, { status: 406 });
         }
 
@@ -152,7 +157,8 @@ export async function PUT(req) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
-        if (Number(customer.credit) < Number(order.total)) {
+        // Check if customer has sufficient credit (skip check if loan was approved)
+        if (!order.loanApproved && Number(customer.credit) < Number(order.total)) {
             return NextResponse.json({ error: 'Insufficient credit to mark order as SUCCESS' }, { status: 403 });
         }
 
@@ -166,12 +172,15 @@ export async function PUT(req) {
 
         try {
             transactionResult = await session.withTransaction(async () => {
-                const userUpdate = await db.collection('users').updateOne(
-                    { _id: new ObjectId(userId) },
-                    { $set: { credit: Number(customer.credit) - Number(order.total) } },
-                    { session }
-                );
-                if (userUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update user credit' };
+                // Only deduct credit if loan was NOT approved (since loan approval already deducted it)
+                if (!order.loanApproved) {
+                    const userUpdate = await db.collection('users').updateOne(
+                        { _id: new ObjectId(userId) },
+                        { $set: { credit: Number(customer.credit) - Number(order.total) } },
+                        { session }
+                    );
+                    if (userUpdate.modifiedCount !== 1) throw { status: 500, error: 'Failed to update user credit' };
+                }
 
                 const orderUpdate = await db.collection('orders').updateOne(
                     { _id: new ObjectId(orderId), userId: userId },
@@ -179,7 +188,9 @@ export async function PUT(req) {
                         $set: {
                             status: 'SUCCESS',
                             succeededBy: user.userId,
-                            updatedAt: new Date()
+                            updatedAt: new Date(),
+                            // If loan was approved, mark it as completed
+                            ...(order.loanApproved && { loanCompleted: true, loanCompletedAt: new Date() })
                         }
                     },
                     { session }

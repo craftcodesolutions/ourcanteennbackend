@@ -48,6 +48,12 @@ export async function POST(req) {
 
         const restaurantId = cart[0].restaurantId;
 
+        // Fetch user details for the order
+        const userDetails = await db.collection('users').findOne({ _id: new ObjectId(user.userId) });
+        if (!userDetails) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
         // Calculate total price
         const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
         const order = {
@@ -57,6 +63,13 @@ export async function POST(req) {
             total,
             status: 'PENDING',
             collectionTime,
+            // User information for admin view
+            userInfo: {
+                name: userDetails.name || '',
+                email: userDetails.email || '',
+                phoneNumber: userDetails.phoneNumber || '',
+                studentId: userDetails.studentId || ''
+            },
             createdAt: new Date(),
             updatedAt: new Date(),
         };
