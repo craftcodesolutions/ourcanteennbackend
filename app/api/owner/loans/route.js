@@ -1,7 +1,23 @@
-import { authenticate } from '@/lib/mongodb';
-import clientPromise from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
+import clientPromise from '@/lib/mongodb';
+import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// === Auth Helper ===
+async function authenticate(req) {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) throw { status: 401, error: 'Access token required' };
+
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        return user;
+    } catch {
+        throw { status: 403, error: 'Invalid or expired token' };
+    }
+}
 
 // === GET: Get all loans for restaurant owner ===
 export async function GET(req) {
