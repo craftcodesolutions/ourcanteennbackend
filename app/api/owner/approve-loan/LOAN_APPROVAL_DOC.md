@@ -8,7 +8,7 @@ POST https://ourcanteennbackend.vercel.app/api/owner/approve-loan
 ---
 
 ## Description
-This endpoint allows restaurant owners or staff with access level "A" to approve loans for customers who have insufficient balance to complete their orders. When a loan is approved, the loan amount is added to the customer's credit, and the order status is updated to 'SCANNED'.
+This endpoint allows restaurant owners or staff with access level "A" to approve loans for customers who have insufficient balance to complete their orders. When a loan is approved, a restaurant-specific loan record is created, the order amount is deducted from the customer's credit (allowing negative balance), and the order status is updated to 'SUCCESS' immediately.
 
 ---
 

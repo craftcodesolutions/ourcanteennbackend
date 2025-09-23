@@ -94,21 +94,29 @@ export async function POST(req) {
 
         try {
             transactionResult = await session.withTransaction(async () => {
-                // Create negative topup instance for loan
-                const loanTopupDoc = {
-                    topupMaker: user.userId,
-                    userId: userId,
-                    name: customer.name || '',
-                    phoneNumber: customer.phoneNumber || '',
-                    email: customer.email || '',
-                    amount: -Number(order.total), // Negative amount for loan
-                    type: 'LOAN',
-                    orderId: orderId,
+                // Create loan record in dedicated loans collection
+                const loanDoc = {
+                    loanApprover: user.userId, // Who approved the loan (staff/owner)
+                    restaurantId: order.restaurantId, // Restaurant this loan belongs to
+                    userId: userId, // Customer who received the loan
+                    orderId: orderId, // Associated order
+                    customerInfo: {
+                        name: customer.name || '',
+                        phoneNumber: customer.phoneNumber || '',
+                        email: customer.email || '',
+                        studentId: customer.studentId || ''
+                    },
+                    loanAmount: Number(order.total),
+                    orderTotal: Number(order.total), // Same as loan amount for full loan
+                    status: 'ACTIVE', // ACTIVE, PAID, CANCELLED
+                    approvedAt: new Date(),
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
                     description: `Loan for Order #${orderId.slice(-8).toUpperCase()}`,
-                    createdAt: new Date()
+                    paymentMethod: 'LOAN' // To distinguish from cash payments
                 };
 
-                await db.collection('topup').insertOne(loanTopupDoc, { session });
+                await db.collection('loans').insertOne(loanDoc, { session });
 
                 // Deduct order amount from customer's credit (can go negative)
                 const creditUpdate = await db.collection('users').updateOne(
