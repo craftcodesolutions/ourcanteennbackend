@@ -130,14 +130,15 @@ export async function PATCH(req) {
 
         // Calculate penalty based on restaurant settings
         const now = new Date();
-        const orderTime = new Date(order.createdAt);
-        const hoursElapsed = (now.getTime() - orderTime.getTime()) / (1000 * 60 * 60);
+        const collectionTime = new Date(order.collectionTime);
+        const hoursUntilCollection = (collectionTime.getTime() - now.getTime()) / (1000 * 60 * 60);
         
         const penaltyRateDecimal = penaltySettings.penaltyRate / 100;
         const rawPenaltyAmount = order.total * penaltyRateDecimal;
-        const penaltyAmount = hoursElapsed < penaltySettings.timeThreshold && penaltySettings.enabled ? 
+        // Apply penalty if cancelling within the threshold time before collection
+        const penaltyAmount = hoursUntilCollection < penaltySettings.timeThreshold && hoursUntilCollection > 0 && penaltySettings.enabled ? 
             Math.round(rawPenaltyAmount * 10) / 10 : 0; // Round to 1 decimal place
-        const requiresPenalty = hoursElapsed < penaltySettings.timeThreshold && penaltySettings.enabled;
+        const requiresPenalty = hoursUntilCollection < penaltySettings.timeThreshold && hoursUntilCollection > 0 && penaltySettings.enabled;
         
         // If penalty is required but not confirmed, return penalty information
         if (requiresPenalty && !confirmPenalty) {
@@ -146,10 +147,11 @@ export async function PATCH(req) {
                 penaltyAmount,
                 penaltyRate: penaltySettings.penaltyRate,
                 timeThreshold: penaltySettings.timeThreshold,
-                hoursElapsed: Math.round(hoursElapsed * 10) / 10,
+                hoursUntilCollection: Math.round(hoursUntilCollection * 10) / 10,
                 order: {
                     _id: order._id,
                     total: order.total,
+                    collectionTime: order.collectionTime,
                     createdAt: order.createdAt
                 }
             }, { status: 200 });

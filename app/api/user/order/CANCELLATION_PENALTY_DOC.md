@@ -1,22 +1,31 @@
 # Order Cancellation Penalty System Documentation
 
 ## Overview
-The canteen app now implements a penalty system for order cancellations within 6 hours of order placement to discourage last-minute cancellations and reduce food waste.
+The canteen app now implements a penalty system for order cancellations within a configurable time threshold before collection time to discourage last-minute cancellations and reduce food waste.
 
 ---
 
 ## Penalty Rules
 
 ### Time-Based Penalty
-- **Within 6 hours**: 10% penalty applied
-- **After 6 hours**: No penalty (free cancellation)
+- **Within threshold time of collection**: Penalty applied (rate set by owner)
+- **Beyond threshold time**: No penalty (free cancellation)
 
 ### Penalty Calculation
 ```javascript
-const hoursElapsed = (currentTime - orderTime) / (1000 * 60 * 60);
-const penaltyRate = 0.10; // 10%
-const penaltyAmount = hoursElapsed < 6 ? Math.round(orderTotal * penaltyRate) : 0;
+const hoursUntilCollection = (collectionTime - currentTime) / (1000 * 60 * 60);
+const penaltyRateDecimal = penaltySettings.penaltyRate / 100;
+const penaltyAmount = hoursUntilCollection < penaltySettings.timeThreshold && hoursUntilCollection > 0 ? 
+  Math.round(orderTotal * penaltyRateDecimal * 10) / 10 : 0;
 ```
+
+**Important**: Penalty is calculated based on **collection time**, not order creation time.
+
+**Example**:
+- Collection time: 4:00 PM
+- Penalty threshold: 6 hours (set by owner)
+- No penalty if cancelled before 10:00 AM (6+ hours before collection)
+- Penalty applies if cancelled after 10:00 AM (less than 6 hours before collection)
 
 ### Credit Deduction
 - Penalty is deducted from user's account credit
@@ -54,10 +63,12 @@ PATCH /api/user/order
   "requiresPenalty": true,
   "penaltyAmount": 25,
   "penaltyRate": 10,
-  "hoursElapsed": 2.5,
+  "timeThreshold": 6,
+  "hoursUntilCollection": 2.5,
   "order": {
     "_id": "64b1234567890abcdef12345",
     "total": 250,
+    "collectionTime": "2024-01-15T16:00:00.000Z",
     "createdAt": "2024-01-15T08:00:00.000Z"
   }
 }
@@ -95,7 +106,7 @@ New fields added when penalty is applied:
   "penaltyApplied": Number,        // Actual penalty deducted
   "penaltyRate": Number,           // Rate used (0.10)
   "cancelledAt": Date,             // When cancelled
-  "hoursElapsedAtCancel": Number,  // Hours elapsed at cancellation
+  "hoursUntilCollection": Number,  // Hours until collection at cancellation
   "updatedAt": Date
 }
 ```
@@ -109,7 +120,7 @@ Tracks all penalty transactions:
   "orderId": "string",             // Related order
   "amount": Number,                // Penalty amount
   "reason": "EARLY_CANCELLATION",  // Penalty reason
-  "hoursElapsed": Number,          // Hours since order
+  "hoursUntilCollection": Number,  // Hours until collection when cancelled
   "orderTotal": Number,            // Original order total
   "penaltyRate": Number,           // Rate applied
   "createdAt": Date
@@ -129,7 +140,7 @@ When user attempts early cancellation:
 1. **Initial Request**: Check for penalty requirement
 2. **Show Modal**: Display penalty information with:
    - Order total
-   - Hours elapsed
+   - Hours until collection
    - Penalty rate (10%)
    - Penalty amount
    - Warning message
@@ -206,9 +217,9 @@ SUCCESS → ❌ Cannot cancel
 - **Clear Information**: Detailed penalty breakdown
 
 ### Flow Example
-1. User clicks "Cancel Order" (placed 2 hours ago)
-2. System calculates: 2 hours < 6 hours → penalty required
-3. Modal shows: "10% penalty (৳25) will be charged"
+1. User clicks "Cancel Order" (collection in 2 hours at 4 PM)
+2. System calculates: 2 hours < 6 hour threshold → penalty required
+3. Modal shows: "10% penalty (৳25) will be charged" 
 4. User can choose to keep order or pay penalty
 5. If confirmed, order cancelled with penalty applied
 6. User receives confirmation with penalty details
