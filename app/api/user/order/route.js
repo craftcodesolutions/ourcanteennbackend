@@ -190,7 +190,7 @@ export async function PATCH(req) {
                             penaltyApplied: finalPenalty,
                             penaltyRate: requiresPenalty ? penaltySettings.penaltyRate : 0,
                             cancelledAt: new Date(),
-                            hoursElapsedAtCancel: hoursElapsed
+                            hoursUntilCollectionAtCancel: hoursUntilCollection
                         } 
                     },
                     { returnDocument: 'after', session }
@@ -214,7 +214,7 @@ export async function PATCH(req) {
                         orderId: orderId,
                         amount: finalPenalty,
                         reason: 'EARLY_CANCELLATION',
-                        hoursElapsed: hoursElapsed,
+                        hoursUntilCollection: hoursUntilCollection,
                         orderTotal: order.total,
                         penaltyRate: penaltySettings.penaltyRate,
                         createdAt: new Date()
