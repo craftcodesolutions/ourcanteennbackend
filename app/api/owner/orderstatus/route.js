@@ -67,8 +67,15 @@ export async function POST(req) {
             // Loan was approved, proceed normally without credit check
             console.log('Order has approved loan, proceeding with scan');
         } else if (Number(customer.credit) < Number(order.total)) {
-            // Insufficient balance and no loan approved
-            return NextResponse.json({ error: 'insufficient balance on user' }, { status: 406 });
+            // Insufficient balance and no loan approved - return order details for loan approval
+            return NextResponse.json({ 
+                error: 'insufficient balance on user',
+                order: order,
+                customer: {
+                    name: customer.name,
+                    credit: customer.credit
+                }
+            }, { status: 406 });
         }
 
         if (!restaurant) {
