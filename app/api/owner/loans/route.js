@@ -1,94 +1,100 @@
 import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import { authenticate } from '@/lib/auth';
-import { ObjectId } from 'mongodb';
 
-// === GET: Get all loans for restaurant owner ===
+// === Authentication helper ===
+async function authenticateOwnerOrStaff(req) {
+    const user = await authenticate(req);
+    const db = (await clientPromise).db();
+    
+    // Verify user is owner or staff
+    const userRecord = await db.collection('users').findOne({
+        _id: new ObjectId(user.userId),
+        $or: [
+            { isOwner: true },
+            { 'staff.isStaff': true }
+        ]
+    });
+
+    if (!userRecord) {
+        throw { status: 401, error: 'You are not Owner or Staff' };
+    }
+
+    // Find the restaurant
+    const restaurant = await db.collection('restaurants').findOne({
+        $or: [
+            { ownerId: new ObjectId(user.userId) },
+            { 'staff.sid': new ObjectId(user.userId) }
+        ]
+    });
+
+    if (!restaurant) {
+        throw { status: 404, error: 'Restaurant not found' };
+    }
+
+    return { user, userRecord, restaurant, db };
+}
+
+// === GET: Fetch loans with filtering and pagination ===
 export async function GET(req) {
     try {
-        const user = await authenticate(req);
-        const db = (await clientPromise).db();
-
-        // Check if user is owner or staff
-        const userRecord = await db.collection('users').findOne({
-            _id: new ObjectId(user.userId),
-            $or: [
-                { isOwner: true },
-                { 'staff.isStaff': true }
-            ]
-        });
-
-        if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
-        }
-
-        // Get restaurant ID
-        let restaurantId;
-        if (userRecord.isOwner) {
-            const restaurant = await db.collection('restaurants').findOne({ ownerId: user.userId });
-            if (!restaurant) {
-                return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-            }
-            restaurantId = restaurant._id.toString();
-        } else {
-            // For staff, get restaurant from staff record
-            restaurantId = userRecord.staff.restaurantId;
-        }
-
-        // Get URL parameters for filtering
-        const url = new URL(req.url);
-        const status = url.searchParams.get('status'); // ACTIVE, PAID, CANCELLED
-        const page = parseInt(url.searchParams.get('page')) || 1;
-        const limit = parseInt(url.searchParams.get('limit')) || 20;
+        const { user, userRecord, restaurant, db } = await authenticateOwnerOrStaff(req);
+        
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get('status') || '';
+        const page = parseInt(searchParams.get('page')) || 1;
+        const limit = parseInt(searchParams.get('limit')) || 20;
         const skip = (page - 1) * limit;
 
-        // Build query
-        const query = { restaurantId: restaurantId };
-        if (status) {
-            query.status = status.toUpperCase();
+        // Build filter query
+        const filter = { restaurantId: restaurant._id.toString() };
+        if (status && status !== 'ALL' && status !== '') {
+            filter.status = status;
         }
 
-        // Get loans with pagination
+        // Fetch loans with pagination
         const loans = await db.collection('loans')
-            .find(query)
+            .find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
             .toArray();
 
         // Get total count for pagination
-        const totalLoans = await db.collection('loans').countDocuments(query);
+        const totalCount = await db.collection('loans').countDocuments(filter);
+        const totalPages = Math.ceil(totalCount / limit);
 
-        // Get loan statistics
-        const stats = await db.collection('loans').aggregate([
-            { $match: { restaurantId: restaurantId } },
-            {
-                $group: {
-                    _id: '$status',
-                    count: { $sum: 1 },
-                    totalAmount: { $sum: '$loanAmount' }
-                }
-            }
-        ]).toArray();
-
-        // Format statistics
-        const loanStats = {
+        // Calculate statistics
+        const statsQuery = { restaurantId: restaurant._id.toString() };
+        const allLoans = await db.collection('loans').find(statsQuery).toArray();
+        
+        const stats = {
+            total: { count: 0, totalAmount: 0 },
             active: { count: 0, totalAmount: 0 },
             paid: { count: 0, totalAmount: 0 },
-            cancelled: { count: 0, totalAmount: 0 },
-            total: { count: 0, totalAmount: 0 }
+            cancelled: { count: 0, totalAmount: 0 }
         };
 
-        stats.forEach(stat => {
-            const status = stat._id.toLowerCase();
-            if (loanStats[status]) {
-                loanStats[status] = {
-                    count: stat.count,
-                    totalAmount: stat.totalAmount
-                };
+        allLoans.forEach(loan => {
+            const amount = loan.loanAmount || 0;
+            stats.total.count++;
+            stats.total.totalAmount += amount;
+            
+            switch (loan.status) {
+                case 'ACTIVE':
+                    stats.active.count++;
+                    stats.active.totalAmount += amount;
+                    break;
+                case 'PAID':
+                    stats.paid.count++;
+                    stats.paid.totalAmount += amount;
+                    break;
+                case 'CANCELLED':
+                    stats.cancelled.count++;
+                    stats.cancelled.totalAmount += amount;
+                    break;
             }
-            loanStats.total.count += stat.count;
-            loanStats.total.totalAmount += stat.totalAmount;
         });
 
         return NextResponse.json({
@@ -96,114 +102,154 @@ export async function GET(req) {
             loans: loans,
             pagination: {
                 currentPage: page,
-                totalPages: Math.ceil(totalLoans / limit),
-                totalLoans: totalLoans,
-                limit: limit
+                totalPages: totalPages,
+                totalCount: totalCount,
+                hasMore: page < totalPages
             },
-            statistics: loanStats
+            statistics: stats
         }, { status: 200 });
 
     } catch (err) {
         console.error('Error fetching loans:', err);
         const status = err.status || 500;
-        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+        return NextResponse.json({ 
+            success: false,
+            error: err.error || 'Failed to fetch loans' 
+        }, { status });
     }
 }
 
-// === PUT: Update loan status (mark as paid/cancelled) ===
+// === PUT: Update loan status ===
 export async function PUT(req) {
     try {
-        const user = await authenticate(req);
-        const db = (await clientPromise).db();
-
+        const { user, userRecord, restaurant, db } = await authenticateOwnerOrStaff(req);
+        
         const body = await req.json();
-        const { loanId, status, notes } = body;
+        const { loanId, status: newStatus, notes } = body;
 
-        if (!loanId || !status) {
-            return NextResponse.json({ error: 'Loan ID and status are required' }, { status: 400 });
+        if (!loanId || !newStatus) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Loan ID and status are required' 
+            }, { status: 400 });
         }
 
-        if (!['PAID', 'CANCELLED'].includes(status.toUpperCase())) {
-            return NextResponse.json({ error: 'Invalid status. Must be PAID or CANCELLED' }, { status: 400 });
+        // Validate status
+        if (!['PAID', 'CANCELLED'].includes(newStatus)) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Invalid status. Only PAID or CANCELLED are allowed' 
+            }, { status: 400 });
         }
 
-        // Check if user is owner or staff
-        const userRecord = await db.collection('users').findOne({
-            _id: new ObjectId(user.userId),
-            $or: [
-                { isOwner: true },
-                { 'staff.isStaff': true }
-            ]
-        });
-
-        if (!userRecord) {
-            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
-        }
-
-        // Get restaurant ID
-        let restaurantId;
-        if (userRecord.isOwner) {
-            const restaurant = await db.collection('restaurants').findOne({ ownerId: user.userId });
-            if (!restaurant) {
-                return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-            }
-            restaurantId = restaurant._id.toString();
-        } else {
-            restaurantId = userRecord.staff.restaurantId;
-        }
-
-        // Find and update the loan
+        // Find the loan
         const loan = await db.collection('loans').findOne({
             _id: new ObjectId(loanId),
-            restaurantId: restaurantId
+            restaurantId: restaurant._id.toString()
         });
 
         if (!loan) {
-            return NextResponse.json({ error: 'Loan not found or access denied' }, { status: 404 });
+            return NextResponse.json({ 
+                success: false,
+                error: 'Loan not found' 
+            }, { status: 404 });
         }
 
-        if (loan.status !== 'ACTIVE') {
-            return NextResponse.json({ error: 'Can only update active loans' }, { status: 400 });
+        // Check if loan is already in final state
+        if (loan.status === 'PAID' || loan.status === 'CANCELLED') {
+            return NextResponse.json({ 
+                success: false,
+                error: `Loan is already ${loan.status.toLowerCase()}` 
+            }, { status: 400 });
         }
 
-        // Update loan status
-        const updateData = {
-            status: status.toUpperCase(),
-            updatedAt: new Date(),
-            updatedBy: user.userId
-        };
+        // Start transaction for loan update
+        const session = db.client.startSession();
+        let transactionResult;
 
-        if (status.toUpperCase() === 'PAID') {
-            updateData.paidAt = new Date();
-        } else if (status.toUpperCase() === 'CANCELLED') {
-            updateData.cancelledAt = new Date();
+        try {
+            transactionResult = await session.withTransaction(async () => {
+                // Prepare update data
+                const updateData = {
+                    status: newStatus,
+                    updatedAt: new Date()
+                };
+
+                // Add timestamp and notes based on status
+                if (newStatus === 'PAID') {
+                    updateData.paidAt = new Date();
+                    if (notes) updateData.notes = notes;
+                } else if (newStatus === 'CANCELLED') {
+                    updateData.cancelledAt = new Date();
+                    if (notes) updateData.notes = notes;
+                }
+
+                // Update loan record
+                const loanUpdate = await db.collection('loans').updateOne(
+                    { _id: new ObjectId(loanId) },
+                    { $set: updateData },
+                    { session }
+                );
+
+                if (loanUpdate.modifiedCount !== 1) {
+                    throw { status: 500, error: 'Failed to update loan' };
+                }
+
+                // If loan is marked as PAID, update customer's credit
+                if (newStatus === 'PAID') {
+                    const creditUpdate = await db.collection('users').updateOne(
+                        { _id: new ObjectId(loan.userId) },
+                        { $inc: { credit: loan.loanAmount } },
+                        { session }
+                    );
+
+                    if (creditUpdate.modifiedCount !== 1) {
+                        throw { status: 500, error: 'Failed to update customer credit' };
+                    }
+                }
+
+                return true;
+            });
+        } finally {
+            await session.endSession();
         }
 
-        if (notes) {
-            updateData.notes = notes;
+        if (transactionResult === undefined || transactionResult === false) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Loan update transaction failed' 
+            }, { status: 500 });
         }
 
-        const result = await db.collection('loans').updateOne(
-            { _id: new ObjectId(loanId) },
-            { $set: updateData }
-        );
-
-        if (result.modifiedCount === 0) {
-            return NextResponse.json({ error: 'Failed to update loan' }, { status: 500 });
-        }
-
-        // Get updated loan
-        const updatedLoan = await db.collection('loans').findOne({ _id: new ObjectId(loanId) });
+        // Fetch updated loan for response
+        const updatedLoan = await db.collection('loans').findOne({
+            _id: new ObjectId(loanId)
+        });
 
         return NextResponse.json({
             success: true,
-            message: `Loan marked as ${status.toLowerCase()}`,
+            message: `Loan marked as ${newStatus.toLowerCase()}`,
             loan: updatedLoan
         }, { status: 200 });
 
     } catch (err) {
         console.error('Error updating loan:', err);
         const status = err.status || 500;
-        return NextResponse.json({ error: err.error || 'Server error' }, { status });
+        return NextResponse.json({ 
+            success: false,
+            error: err.error || 'Failed to update loan' 
+        }, { status });
     }
+}
+
+// === CORS ===
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+    });
 }
