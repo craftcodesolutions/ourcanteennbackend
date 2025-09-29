@@ -24,6 +24,8 @@ export async function GET(request) {
     // Authenticate user
     const user = await authenticate(request);
     const userId = user.userId;
+    
+    console.log('Authenticated user:', { userId, userObject: user });
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'ALL'; // ALL, LOANS, TOPUPS
     const status = searchParams.get('status') || ''; // For loans: ACTIVE, PAID, CANCELLED
@@ -40,11 +42,13 @@ export async function GET(request) {
 
     // Fetch loans if type is ALL or LOANS
     if (type === 'ALL' || type === 'LOANS') {
-      // Build loan query
-      const loanQuery = { userId: new ObjectId(userId) };
+      // Build loan query - userId is stored as string in loans collection
+      const loanQuery = { userId: userId };
       if (status && status !== 'ALL') {
         loanQuery.status = status;
       }
+
+      console.log('Loan query:', loanQuery);
 
       // Get loans with pagination
       const loansData = await db.collection('loans')
@@ -54,6 +58,8 @@ export async function GET(request) {
         .limit(type === 'LOANS' ? limit : limit / 2)
         .toArray();
 
+      console.log('Found loans:', loansData.length, loansData);
+
       // Get restaurant info for each loan
       for (let loan of loansData) {
         const restaurant = await db.collection('restaurants').findOne({ _id: new ObjectId(loan.restaurantId) });
@@ -62,9 +68,9 @@ export async function GET(request) {
 
       loans = loansData;
 
-      // Calculate loan statistics
+      // Calculate loan statistics - userId is string
       const loanPipeline = [
-        { $match: { userId: new ObjectId(userId) } },
+        { $match: { userId: userId } },
         {
           $group: {
             _id: '$status',
@@ -75,6 +81,7 @@ export async function GET(request) {
       ];
 
       const loanStatsData = await db.collection('loans').aggregate(loanPipeline).toArray();
+      console.log('Loan stats data:', loanStatsData);
       
       loanStats = {
         active: { count: 0, totalAmount: 0 },
@@ -135,7 +142,7 @@ export async function GET(request) {
     // Calculate pagination info
     let totalItems = 0;
     if (type === 'LOANS') {
-      const loanQuery = { userId: new ObjectId(userId) };
+      const loanQuery = { userId: userId }; // Use string, not ObjectId
       if (status && status !== 'ALL') {
         loanQuery.status = status;
       }
