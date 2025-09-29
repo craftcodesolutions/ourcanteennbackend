@@ -95,48 +95,41 @@ export async function GET(request) {
 
     // Fetch topups if type is ALL or TOPUPS
     if (type === 'ALL' || type === 'TOPUPS') {
-      // Build topup query
-      const topupQuery = { userId: new ObjectId(userId) };
+      // Build topup query - note: topup collection uses userId as string, not ObjectId
+      const topupQuery = { userId: userId };
 
       // Get topups with pagination
-      const topupsData = await db.collection('topups')
+      const topupsData = await db.collection('topup')
         .find(topupQuery)
         .sort({ createdAt: -1 })
         .skip(type === 'TOPUPS' ? skip : 0)
         .limit(type === 'TOPUPS' ? limit : limit / 2)
         .toArray();
 
-      topups = topupsData;
+      // Transform topup data to match expected structure
+      topups = topupsData.map(topup => ({
+        ...topup,
+        status: 'approved', // All topups in this collection are already approved
+        updatedAt: topup.createdAt, // Use createdAt as updatedAt if not present
+        approvedAt: topup.createdAt,
+        notes: `Topup by ${topup.name || 'Staff'}`
+      }));
 
-      // Calculate topup statistics
-      const topupPipeline = [
-        { $match: { userId: new ObjectId(userId) } },
-        {
-          $group: {
-            _id: '$status',
-            count: { $sum: 1 },
-            totalAmount: { $sum: '$amount' }
-          }
-        }
-      ];
+      // Calculate topup statistics - since all topups are approved
+      const totalTopups = await db.collection('topup').countDocuments({ userId: userId });
+      const totalAmount = await db.collection('topup').aggregate([
+        { $match: { userId: userId } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]).toArray();
 
-      const topupStatsData = await db.collection('topups').aggregate(topupPipeline).toArray();
+      const totalAmountValue = totalAmount.length > 0 ? totalAmount[0].total : 0;
       
       topupStats = {
         pending: { count: 0, totalAmount: 0 },
-        approved: { count: 0, totalAmount: 0 },
+        approved: { count: totalTopups, totalAmount: totalAmountValue },
         rejected: { count: 0, totalAmount: 0 },
-        total: { count: 0, totalAmount: 0 }
+        total: { count: totalTopups, totalAmount: totalAmountValue }
       };
-
-      topupStatsData.forEach(stat => {
-        const status = stat._id?.toLowerCase() || 'unknown';
-        if (topupStats[status]) {
-          topupStats[status] = { count: stat.count, totalAmount: stat.totalAmount };
-        }
-        topupStats.total.count += stat.count;
-        topupStats.total.totalAmount += stat.totalAmount;
-      });
     }
 
     // Calculate pagination info
@@ -148,13 +141,21 @@ export async function GET(request) {
       }
       totalItems = await db.collection('loans').countDocuments(loanQuery);
     } else if (type === 'TOPUPS') {
-      totalItems = await db.collection('topups').countDocuments({ userId: new ObjectId(userId) });
+      totalItems = await db.collection('topup').countDocuments({ userId: userId });
     } else {
       // For ALL, we combine both but limit pagination complexity
       totalItems = loans.length + topups.length;
     }
 
     const totalPages = Math.ceil(totalItems / limit);
+
+    console.log('Returning history data:', {
+      loansCount: loans.length,
+      topupsCount: topups.length,
+      loanStats,
+      topupStats,
+      pagination: { currentPage: page, totalPages, totalItems }
+    });
 
     return NextResponse.json({
       success: true,

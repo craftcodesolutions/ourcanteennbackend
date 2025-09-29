@@ -57,14 +57,17 @@ This API endpoint allows users to retrieve their loan and topup history with fil
     "topups": [
       {
         "_id": "topup_id",
+        "topupMaker": "staff_id",
         "userId": "user_id",
+        "name": "User Name",
+        "phoneNumber": "+1234567890",
+        "email": "user@email.com",
         "amount": 100.00,
         "status": "approved",
-        "approvedBy": "admin_id",
         "createdAt": "2024-01-01T10:00:00Z",
-        "updatedAt": "2024-01-01T11:00:00Z",
-        "approvedAt": "2024-01-01T11:00:00Z",
-        "notes": "Topup notes"
+        "updatedAt": "2024-01-01T10:00:00Z",
+        "approvedAt": "2024-01-01T10:00:00Z",
+        "notes": "Topup by Staff"
       }
     ],
     "statistics": {
@@ -135,7 +138,7 @@ GET /api/user/history?type=TOPUPS&page=2&limit=10
 
 ## Database Collections Used
 - `loans` - For loan history
-- `topups` - For topup history  
+- `topup` - For topup history (note: singular, not plural)
 - `restaurants` - For restaurant information in loans
 
 ## Technical Implementation

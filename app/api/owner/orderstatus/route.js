@@ -62,6 +62,27 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
+        if (!restaurant) {
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+        }
+
+        if (!order) {
+            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+        }
+
+        if (order.restaurantId !== restaurant._id.toString()) {
+            return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
+        }
+
+        // Check if order is already SUCCESS first - this should take precedence over balance checks
+        if (order.status === 'SUCCESS') {
+            return NextResponse.json({
+                success: false,
+                alreadySuccess: true,
+                message: 'Order already marked as SUCCESS'
+            }, { status: 200 });
+        }
+
         // Check if order already has a loan approved
         if (order.loanApproved) {
             // Loan was approved, proceed normally without credit check
@@ -76,26 +97,6 @@ export async function POST(req) {
                     credit: customer.credit
                 }
             }, { status: 406 });
-        }
-
-        if (!restaurant) {
-            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-        }
-
-        if (!order) {
-            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-        }
-
-        if (order.restaurantId !== restaurant._id.toString()) {
-            return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
-        }
-
-        if (order.status === 'SUCCESS') {
-            return NextResponse.json({
-                success: false,
-                alreadySuccess: true,
-                message: 'Order already marked as SUCCESS'
-            }, { status: 200 });
         }
 
         // Update order status to SCANNED and add scannedBy field
