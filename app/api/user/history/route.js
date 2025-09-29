@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import { verifyToken } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// === Auth Helper ===
+async function authenticate(req) {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) throw { status: 401, error: 'Access token required' };
+
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        return user;
+    } catch {
+        throw { status: 403, error: 'Invalid or expired token' };
+    }
+}
 
 export async function GET(request) {
   try {
-    // Verify token
-    const authResult = await verifyToken(request);
-    if (!authResult.success) {
-      return NextResponse.json(
-        { success: false, error: authResult.error },
-        { status: 401 }
-      );
-    }
-
-    const userId = authResult.payload.userId;
+    // Authenticate user
+    const user = await authenticate(request);
+    const userId = user.userId;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'ALL'; // ALL, LOANS, TOPUPS
     const status = searchParams.get('status') || ''; // For loans: ACTIVE, PAID, CANCELLED
@@ -167,11 +176,24 @@ export async function GET(request) {
       }
     });
 
-  } catch (error) {
-    console.error('Error fetching user history:', error);
+  } catch (err) {
+    console.error('Error fetching user history:', err);
+    const status = err.status || 500;
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { success: false, error: err.error || 'Internal server error' },
+      { status }
     );
   }
+}
+
+// === CORS ===
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+    });
 }

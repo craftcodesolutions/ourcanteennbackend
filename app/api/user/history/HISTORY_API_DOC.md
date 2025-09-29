@@ -9,6 +9,7 @@ This API endpoint allows users to retrieve their loan and topup history with fil
 ## Authentication
 - **Required**: JWT token in Authorization header
 - **Format**: `Authorization: Bearer <token>`
+- **Note**: Uses the same authentication pattern as other user endpoints
 
 ## Query Parameters
 
