@@ -163,6 +163,20 @@ export async function PUT(req) {
             }, { status: 400 });
         }
 
+        // Prevent cancellation within 1 hour of loan creation
+        if (newStatus === 'CANCELLED') {
+            const loanCreatedTime = new Date(loan.createdAt).getTime();
+            const currentTime = new Date().getTime();
+            const timeDifferenceHours = (currentTime - loanCreatedTime) / (1000 * 60 * 60);
+            
+            if (timeDifferenceHours < 1) {
+                return NextResponse.json({ 
+                    success: false,
+                    error: `Loans cannot be cancelled within 1 hour of being issued. This loan was created ${Math.round(timeDifferenceHours * 60)} minutes ago.` 
+                }, { status: 400 });
+            }
+        }
+
         // Start transaction for loan update
         const session = db.client.startSession();
         let transactionResult;
