@@ -138,6 +138,11 @@ GET /api/user/history?type=TOPUPS&page=2&limit=10
 - `topups` - For topup history  
 - `restaurants` - For restaurant information in loans
 
+## Technical Implementation
+- Uses `clientPromise` from `@/lib/mongodb` for database connection
+- Follows the same authentication pattern as other user endpoints
+- Implements proper error handling and CORS support
+
 ## Notes
 - Results are sorted by creation date (newest first)
 - When type is 'ALL', both loans and topups are returned with equal weight
