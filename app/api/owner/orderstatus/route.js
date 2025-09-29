@@ -164,6 +164,15 @@ export async function PUT(req) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
+        // Check if order is already SUCCESS
+        if (order.status === 'SUCCESS') {
+            return NextResponse.json({
+                success: false,
+                alreadySuccess: true,
+                message: 'Order already marked as SUCCESS'
+            }, { status: 200 });
+        }
+
         // Check if customer has sufficient credit (skip check if loan was approved)
         if (!order.loanApproved && Number(customer.credit) < Number(order.total)) {
             return NextResponse.json({ error: 'Insufficient credit to mark order as SUCCESS' }, { status: 403 });

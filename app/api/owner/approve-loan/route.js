@@ -72,6 +72,24 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
+        // Check if order is already SUCCESS
+        if (order.status === 'SUCCESS') {
+            return NextResponse.json({ 
+                error: 'Order is already paid and marked as SUCCESS. Loan approval not needed.',
+                alreadySuccess: true,
+                order: order
+            }, { status: 400 });
+        }
+
+        // Check if loan is already approved for this order
+        if (order.loanApproved) {
+            return NextResponse.json({ 
+                error: 'Loan has already been approved for this order.',
+                alreadyApproved: true,
+                order: order
+            }, { status: 400 });
+        }
+
         // Verify order belongs to the user's restaurant
         if (order.restaurantId !== restaurant._id.toString()) {
             return NextResponse.json({ error: 'Order does not belong to your restaurant' }, { status: 403 });
