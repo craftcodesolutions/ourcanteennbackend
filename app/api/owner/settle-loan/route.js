@@ -73,19 +73,8 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // Check 1-hour cancellation protection for all loans
-        const currentTime = new Date().getTime();
-        for (const loan of loans) {
-            const loanCreatedTime = new Date(loan.createdAt).getTime();
-            const timeDifferenceHours = (currentTime - loanCreatedTime) / (1000 * 60 * 60);
-            
-            if (timeDifferenceHours < 1) {
-                return NextResponse.json({ 
-                    success: false,
-                    error: `Loan ${loan.orderId.slice(-8)} cannot be settled within 1 hour of being issued. Created ${Math.round(timeDifferenceHours * 60)} minutes ago.` 
-                }, { status: 400 });
-            }
-        }
+        // Note: No time restriction for settlement - customers can pay loans immediately
+        // The 1-hour rule only applies to loan cancellation, not settlement
 
         // Calculate total settlement amount
         const totalSettlementAmount = loans.reduce((sum, loan) => sum + loan.loanAmount, 0);

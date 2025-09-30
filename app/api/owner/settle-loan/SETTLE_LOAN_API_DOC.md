@@ -116,7 +116,7 @@ Content-Type: application/json
    - Validates user ID is provided
    - Ensures all loans exist and are ACTIVE
    - Verifies all loans belong to the specified user
-3. **1-Hour Protection**: Prevents settlement of loans created within the last hour
+3. **No Time Restrictions**: Loans can be settled immediately (1-hour rule only applies to cancellation)
 4. **Transaction Processing**:
    - Updates all specified loans to PAID status
    - Adds settlement timestamp and notes
@@ -219,10 +219,11 @@ const settleAllLoans = async (customerLoans, userId) => {
 - **Duplicate Prevention**: Validates loan status before processing
 
 ### Business Rules
-- **1-Hour Protection**: Cannot settle loans within 1 hour of creation
+- **Immediate Settlement**: Loans can be settled immediately after creation (no time restrictions)
 - **Status Validation**: Only ACTIVE loans can be settled
 - **Ownership Verification**: Loans must belong to specified user
 - **Staff Authorization**: Only authorized staff can settle loans
+- **Note**: 1-hour rule only applies to loan cancellation, not settlement
 
 ### Audit Trail
 - **Staff Attribution**: Records which staff member settled the loans
