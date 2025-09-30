@@ -1,0 +1,190 @@
+import jwt from 'jsonwebtoken';
+import { NextResponse } from 'next/server';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_in_production';
+
+async function authenticate(req) {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) throw { status: 401, error: 'Access token required' };
+
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        return user;
+    } catch {
+        throw { status: 403, error: 'Invalid or expired token' };
+    }
+}
+
+export async function POST(request) {
+    try {
+        // Authenticate user
+        const user = await authenticate(request);
+        if (!user.isOwner && (!user.staff || !user.staff.isStaff)) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'Unauthorized access' 
+            }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const { loanIds, userId, notes } = body;
+
+        // Validate required fields
+        if (!loanIds || !Array.isArray(loanIds) || loanIds.length === 0) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Loan IDs array is required' 
+            }, { status: 400 });
+        }
+
+        if (!userId) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'User ID is required' 
+            }, { status: 400 });
+        }
+
+        const db = (await clientPromise).db();
+
+        // Convert loan IDs to ObjectIds
+        const loanObjectIds = loanIds.map(id => new ObjectId(id));
+
+        // Fetch all loans to validate and calculate total
+        const loans = await db.collection('loans').find({
+            _id: { $in: loanObjectIds },
+            userId: userId,
+            status: 'ACTIVE'
+        }).toArray();
+
+        if (loans.length === 0) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'No active loans found for the specified IDs' 
+            }, { status: 404 });
+        }
+
+        if (loans.length !== loanIds.length) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Some loan IDs are invalid or not active' 
+            }, { status: 400 });
+        }
+
+        // Check 1-hour cancellation protection for all loans
+        const currentTime = new Date().getTime();
+        for (const loan of loans) {
+            const loanCreatedTime = new Date(loan.createdAt).getTime();
+            const timeDifferenceHours = (currentTime - loanCreatedTime) / (1000 * 60 * 60);
+            
+            if (timeDifferenceHours < 1) {
+                return NextResponse.json({ 
+                    success: false,
+                    error: `Loan ${loan.orderId.slice(-8)} cannot be settled within 1 hour of being issued. Created ${Math.round(timeDifferenceHours * 60)} minutes ago.` 
+                }, { status: 400 });
+            }
+        }
+
+        // Calculate total settlement amount
+        const totalSettlementAmount = loans.reduce((sum, loan) => sum + loan.loanAmount, 0);
+
+        // Start transaction
+        const session = (await clientPromise).startSession();
+        let transactionResult;
+
+        try {
+            transactionResult = await session.withTransaction(async () => {
+                const currentTime = new Date();
+                const settlementNotes = `Payment Method: Cash at Restaurant${notes ? ` - ${notes}` : ''} - Settled via Scanner by ${user.name || 'Staff'} - ${loans.length} loan(s) settled`;
+
+                // Update all loans to PAID status
+                const loanUpdateResult = await db.collection('loans').updateMany(
+                    { _id: { $in: loanObjectIds } },
+                    { 
+                        $set: {
+                            status: 'PAID',
+                            paidAt: currentTime,
+                            updatedAt: currentTime,
+                            notes: settlementNotes
+                        }
+                    },
+                    { session }
+                );
+
+                if (loanUpdateResult.modifiedCount !== loans.length) {
+                    throw { status: 500, error: 'Failed to update all loans' };
+                }
+
+                // Restore customer credit (add total loan amount back)
+                const creditUpdateResult = await db.collection('users').updateOne(
+                    { _id: new ObjectId(userId) },
+                    { $inc: { credit: totalSettlementAmount } },
+                    { session }
+                );
+
+                if (creditUpdateResult.modifiedCount !== 1) {
+                    throw { status: 500, error: 'Failed to update customer credit' };
+                }
+
+                return {
+                    settledLoans: loans.length,
+                    totalAmount: totalSettlementAmount,
+                    loanIds: loanIds
+                };
+            });
+        } finally {
+            await session.endSession();
+        }
+
+        if (!transactionResult) {
+            return NextResponse.json({ 
+                success: false,
+                error: 'Transaction failed, no changes applied' 
+            }, { status: 500 });
+        }
+
+        // Fetch updated customer info
+        const updatedCustomer = await db.collection('users').findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { credit: 1, name: 1, email: 1, phoneNumber: 1 } }
+        );
+
+        return NextResponse.json({
+            success: true,
+            message: `Successfully settled ${transactionResult.settledLoans} loan(s)`,
+            data: {
+                settledLoans: transactionResult.settledLoans,
+                totalAmount: transactionResult.totalAmount,
+                loanIds: transactionResult.loanIds,
+                customer: {
+                    userId: userId,
+                    name: updatedCustomer?.name,
+                    email: updatedCustomer?.email,
+                    phoneNumber: updatedCustomer?.phoneNumber,
+                    newCreditBalance: updatedCustomer?.credit
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Error settling loans:', err);
+        return NextResponse.json({ 
+            success: false, 
+            error: err.error || 'Internal server error',
+        }, { status: err.status || 500 });
+    }
+}
+
+// CORS handler
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+    });
+}
