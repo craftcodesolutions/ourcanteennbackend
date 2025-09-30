@@ -1,40 +1,51 @@
-import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
+import { authenticate } from '@/lib/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_in_production';
+// === Authentication helper ===
+async function authenticateOwnerOrStaff(req) {
+    const user = await authenticate(req);
+    const db = (await clientPromise).db();
+    
+    // Verify user is owner or staff
+    const userRecord = await db.collection('users').findOne({
+        _id: new ObjectId(user.userId),
+        $or: [
+            { isOwner: true },
+            { 'staff.isStaff': true }
+        ]
+    });
 
-async function authenticate(req) {
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) throw { status: 401, error: 'Access token required' };
-
-    try {
-        const user = jwt.verify(token, JWT_SECRET);
-        return user;
-    } catch {
-        throw { status: 403, error: 'Invalid or expired token' };
+    if (!userRecord) {
+        throw { status: 401, error: 'You are not Owner or Staff' };
     }
+
+    // Find the restaurant
+    const restaurant = await db.collection('restaurants').findOne({
+        $or: [
+            { ownerId: new ObjectId(user.userId) },
+            { 'staff.sid': new ObjectId(user.userId) }
+        ]
+    });
+
+    if (!restaurant) {
+        throw { status: 404, error: 'Restaurant not found' };
+    }
+
+    return { user, userRecord, restaurant, db };
 }
 
 export async function GET(request) {
     try {
-        // Authenticate user
-        const user = await authenticate(request);
-        if (!user.isOwner && (!user.staff || !user.staff.isStaff)) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Unauthorized access' 
-            }, { status: 403 });
-        }
+        // Authenticate user as owner or staff
+        const { user, userRecord, restaurant, db } = await authenticateOwnerOrStaff(request);
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status') || '';
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '50'); // Increase limit for grouped view
         const skip = (page - 1) * limit;
-
-        const db = (await clientPromise).db();
 
         // Build match criteria for aggregation
         const matchCriteria = {};

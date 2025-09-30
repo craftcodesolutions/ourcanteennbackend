@@ -30,7 +30,7 @@ export async function POST(req) {
     }
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email, isOwner: user.isOwner },
+      { userId: user._id, email: user.email, isOwner: user.isOwner, staff: user.staff || null },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
