@@ -133,8 +133,7 @@ export async function POST(req) {
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: APP_TIMEZONE,
-        timeZoneName: 'short'
+        timeZone: APP_TIMEZONE
       });
 
       // Send emails to all users
