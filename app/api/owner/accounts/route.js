@@ -155,7 +155,17 @@ export async function GET(req) {
 
                 const orderStat = {
                     count: memberOrders.length,
-                    amount: memberOrders.reduce((sum, o) => sum + (typeof o.total === 'number' ? o.total : 0), 0)
+                    // Only count amount for cash-paid orders, not loan-paid orders
+                    amount: memberOrders.reduce((sum, o) => {
+                        // Exclude loan-paid orders from amount calculation
+                        if (o.loanApproved || o.loanCompleted) {
+                            return sum; // Count the order but not the amount
+                        }
+                        return sum + (typeof o.total === 'number' ? o.total : 0);
+                    }, 0),
+                    // Separate tracking for loan-paid orders
+                    loanPaidOrdersCount: memberOrders.filter(o => o.loanApproved || o.loanCompleted).length,
+                    cashPaidOrdersCount: memberOrders.filter(o => !o.loanApproved && !o.loanCompleted).length
                 };
 
                 const loanStat = {
