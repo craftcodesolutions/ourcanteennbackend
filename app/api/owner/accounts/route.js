@@ -1,52 +1,55 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
+import clientPromise from '@/lib/mongodb';
+import { authenticate } from '@/lib/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// === Authentication helper ===
+async function authenticateOwnerOrStaff(req) {
+    const user = await authenticate(req);
+    const db = (await clientPromise).db();
+    
+    // Verify user is owner or staff
+    const userRecord = await db.collection('users').findOne({
+        _id: new ObjectId(user.userId),
+        $or: [
+            { isOwner: true },
+            { 'staff.isStaff': true }
+        ]
+    });
 
-// === Auth Helper ===
-async function authenticate(req) {
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) throw { status: 401, error: 'Access token required' };
-
-    try {
-        const user = jwt.verify(token, JWT_SECRET);
-        return user;
-    } catch {
-        throw { status: 403, error: 'Invalid or expired token' };
+    if (!userRecord) {
+        throw { status: 401, error: 'You are not Owner or Staff' };
     }
+
+    // Find the restaurant
+    const restaurant = await db.collection('restaurants').findOne({
+        $or: [
+            { ownerId: new ObjectId(user.userId) },
+            { 'staff.sid': new ObjectId(user.userId) }
+        ]
+    });
+
+    if (!restaurant) {
+        throw { status: 404, error: 'Restaurant not found' };
+    }
+
+    return { user, userRecord, restaurant, db };
 }
 
 // === GET Handler ===
 export async function GET(req) {
     try {
-        const owner = await authenticate(req);
-        const db = (await clientPromise).db();
-
-        // 1. Verify Owner
-        const ownerRecord = await db.collection('users').findOne({
-            _id: new ObjectId(owner.userId),
-            isOwner: true
-        });
-
-        if (!ownerRecord) {
-            return NextResponse.json({ error: 'You are not Owner or Staff' }, { status: 401 });
-        }
-
-        // 2. Fetch Restaurant
-        const restaurant = await db.collection('restaurants').findOne({
-            ownerId: new ObjectId(owner.userId)
-        });
-
-        if (!restaurant) {
-            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-        }
+        // Authenticate user as owner or staff
+        const { user, userRecord, restaurant, db } = await authenticateOwnerOrStaff(req);
 
         // 3. Build Member List (Owner + Staff)
+        // Find the actual owner of the restaurant
+        const restaurantOwner = await db.collection('users').findOne({
+            _id: restaurant.ownerId
+        });
+
         const memberIds = [{
-            id: owner.userId,
+            id: restaurant.ownerId.toString(),
             isActive: true,
             title: "Owner"
         }];
