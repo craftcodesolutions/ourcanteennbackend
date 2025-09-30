@@ -192,6 +192,7 @@ export async function PUT(req) {
                 // Add timestamp and notes based on status
                 if (newStatus === 'PAID') {
                     updateData.paidAt = new Date();
+                    updateData.settledBy = user.userId; // Add staff attribution
                     if (notes) updateData.notes = notes;
                 } else if (newStatus === 'CANCELLED') {
                     updateData.cancelledAt = new Date();

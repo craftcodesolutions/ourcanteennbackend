@@ -20,9 +20,20 @@ async function authenticate(req) {
 
 export async function POST(request) {
     try {
-        // Authenticate user
+        // Authenticate user as owner or staff
         const user = await authenticate(request);
-        if (!user.isOwner && (!user.staff || !user.staff.isStaff)) {
+        const db = (await clientPromise).db();
+        
+        // Verify user is owner or staff
+        const userRecord = await db.collection('users').findOne({
+            _id: new ObjectId(user.userId),
+            $or: [
+                { isOwner: true },
+                { 'staff.isStaff': true }
+            ]
+        });
+
+        if (!userRecord) {
             return NextResponse.json({ 
                 success: false, 
                 error: 'Unauthorized access' 
@@ -46,8 +57,6 @@ export async function POST(request) {
                 error: 'User ID is required' 
             }, { status: 400 });
         }
-
-        const db = (await clientPromise).db();
 
         // Convert loan IDs to ObjectIds
         const loanObjectIds = loanIds.map(id => new ObjectId(id));
@@ -96,6 +105,7 @@ export async function POST(request) {
                             status: 'PAID',
                             paidAt: currentTime,
                             updatedAt: currentTime,
+                            settledBy: user.userId, // Add staff attribution
                             notes: settlementNotes
                         }
                     },

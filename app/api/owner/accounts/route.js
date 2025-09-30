@@ -90,13 +90,10 @@ export async function GET(req) {
         }).toArray();
 
         // Fetch loan settlements (loans that have been paid/settled)
+        // All paid loans should be included since they represent settled amounts
         const loanTracks = await db.collection('loans').find({
             status: 'PAID',
-            // Find loans settled by any staff member (check notes for staff attribution)
-            $or: [
-                { notes: { $regex: memberIds.map(m => `settled by.*${m.id}`).join('|'), $options: 'i' } },
-                { settledBy: { $in: memberIds.map(m => m.id) } }
-            ]
+            paidAt: { $exists: true }
         }).toArray();
 
         // 6. Collect All Active Dates (YYYY-MM-DD format)
@@ -147,12 +144,8 @@ export async function GET(req) {
                         return false;
                     }
                     
-                    // Check if this member settled the loan (from notes or settledBy field)
-                    const settledByMember = l.settledBy === member.id || 
-                        (l.notes && l.notes.toLowerCase().includes(`settled by`)) ||
-                        (l.notes && l.notes.includes(member.id));
-                    
-                    return settledByMember;
+                    // Check if this member settled the loan using settledBy field
+                    return l.settledBy === member.id;
                 });
 
                 const topupStat = {
