@@ -90,15 +90,23 @@ export async function POST(req) {
       }
     );
 
-    // Get all users from the same institute as the restaurant
+    // Get all users from the same institute as the restaurant (with valid email)
     const users = await db.collection('users').find({ 
       institute: restaurant.institute,
-      role: 'user' // Only send to regular users, not admins or staff
+      email: { $exists: true, $ne: '' }
     }).toArray();
 
     if (users.length > 0) {
       // Prepare email content
       const transporter = createTransporter();
+
+      // Verify transporter before sending
+      try {
+        await transporter.verify();
+      } catch (verifyErr) {
+        console.error('Email transporter verification failed:', verifyErr);
+        return NextResponse.json({ error: 'Email service not configured properly. Please check SMTP credentials.' }, { status: 500 });
+      }
       
       // Create menu items list for email
       const menuItemsList = menuItems.map(item => {
@@ -186,12 +194,14 @@ export async function POST(req) {
       });
 
       // Send all emails
+      let failedEmails = [];
       try {
         await Promise.all(emailPromises);
         console.log(`Discount emails sent to ${users.length} users`);
       } catch (emailError) {
         console.error('Error sending discount emails:', emailError);
-        // Don't fail the whole request if emails fail, discount is already applied
+        failedEmails.push(emailError?.message || 'Unknown email error');
+        // Do not fail the entire request since discount is applied successfully
       }
     }
 
@@ -199,7 +209,8 @@ export async function POST(req) {
       success: true,
       message: `Discount applied to ${menuItems.length} items and notifications sent to ${users.length} users`,
       appliedItems: menuItems.length,
-      notifiedUsers: users.length
+      notifiedUsers: users.length,
+      emailIssues: typeof failedEmails !== 'undefined' && failedEmails.length ? failedEmails : undefined
     });
 
   } catch (error) {
