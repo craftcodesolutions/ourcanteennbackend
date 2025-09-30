@@ -125,12 +125,16 @@ export async function POST(req) {
         `;
       }).join('');
 
+      // Format in a consistent app timezone to avoid UTC shifts in emails
+      const APP_TIMEZONE = process.env.EMAIL_TIMEZONE || process.env.APP_TIMEZONE || 'Asia/Dhaka';
       const validUntilFormatted = new Date(validUntil).toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: APP_TIMEZONE,
+        timeZoneName: 'short'
       });
 
       // Send emails to all users
