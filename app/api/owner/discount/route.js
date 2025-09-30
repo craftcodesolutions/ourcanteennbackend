@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { verifyJWT } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import nodemailer from 'nodemailer';
 
 // Create email transporter
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail', 
     auth: {
       user: process.env.EMAIL_USER, 
@@ -15,12 +15,19 @@ const createTransporter = () => {
   });
 };
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// === Auth Helper (match owner/resmenu style) ===
 async function authenticate(req) {
+  const authHeader = req.headers.get('authorization');
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) throw { status: 401, error: 'Access token required' };
+
   try {
-    const user = await verifyJWT(req);
+    const user = jwt.verify(token, JWT_SECRET);
     return user;
-  } catch (error) {
-    throw { status: 403, error: 'Authentication failed' };
+  } catch {
+    throw { status: 403, error: 'Invalid or expired token' };
   }
 }
 
@@ -252,5 +259,12 @@ export async function DELETE(req) {
 
 // === OPTIONS ===
 export async function OPTIONS() {
-  return NextResponse.json({}, { status: 200 });
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }
