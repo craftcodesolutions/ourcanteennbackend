@@ -5,6 +5,27 @@ import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_in_production';
 
+// === CRITICAL BUSINESS RULE ENFORCEMENT ===
+// This function ensures that ALL loans marked as PAID must have a settledBy field
+// This is mandatory for financial audit and staff accountability
+function validateSettlementData(settledBy, loanIds) {
+    if (!settledBy) {
+        throw { 
+            status: 400, 
+            error: 'BUSINESS RULE VIOLATION: All loan settlements must have a valid settledBy field identifying the staff member who processed the settlement' 
+        };
+    }
+    
+    if (!loanIds || loanIds.length === 0) {
+        throw { 
+            status: 400, 
+            error: 'BUSINESS RULE VIOLATION: Loan settlement requires valid loan IDs' 
+        };
+    }
+    
+    return true;
+}
+
 async function authenticate(req) {
     const authHeader = req.headers.get('authorization');
     const token = authHeader && authHeader.split(' ')[1];
@@ -95,6 +116,10 @@ export async function POST(request) {
         try {
             transactionResult = await session.withTransaction(async () => {
                 const currentTime = new Date();
+                
+                // ENFORCE BUSINESS RULE: Validate settlement requirements
+                validateSettlementData(user.userId, loanIds);
+                
                 const settlementNotes = `Payment Method: Cash at Restaurant${notes ? ` - ${notes}` : ''} - Settled via Scanner by ${user.name || 'Staff'} - ${loans.length} loan(s) settled`;
 
                 // Update all loans to PAID status
@@ -105,7 +130,7 @@ export async function POST(request) {
                             status: 'PAID',
                             paidAt: currentTime,
                             updatedAt: currentTime,
-                            settledBy: user.userId, // Add staff attribution
+                            settledBy: user.userId, // MANDATORY: Staff attribution for settlement
                             notes: settlementNotes
                         }
                     },
@@ -114,6 +139,17 @@ export async function POST(request) {
 
                 if (loanUpdateResult.modifiedCount !== loans.length) {
                     throw { status: 500, error: 'Failed to update all loans' };
+                }
+
+                // VALIDATION: Ensure all loans have settledBy field set
+                const verificationLoans = await db.collection('loans').find(
+                    { _id: { $in: loanObjectIds } },
+                    { session }
+                ).toArray();
+                
+                const loansWithoutSettler = verificationLoans.filter(loan => !loan.settledBy);
+                if (loansWithoutSettler.length > 0) {
+                    throw { status: 500, error: 'CRITICAL ERROR: Some loans marked as PAID without settledBy field' };
                 }
 
                 // Restore customer credit (add total loan amount back)

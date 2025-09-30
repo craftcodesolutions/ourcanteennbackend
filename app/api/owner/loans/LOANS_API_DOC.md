@@ -137,11 +137,13 @@ GET /api/owner/loans?status=ACTIVE&page=1&limit=20
 1. **Authentication**: Verifies user permissions
 2. **Validation**: Ensures loan exists and belongs to user's restaurant
 3. **Status Validation**: Only allows updates to PAID or CANCELLED from ACTIVE status
-4. **Transaction Processing**:
+4. **Business Rule Enforcement**: **MANDATORY** - All loans marked as PAID must include a `settledBy` field with the staff member's user ID
+5. **Transaction Processing**:
    - Updates loan record with new status and timestamp
-   - If marked as PAID: Adds loan amount back to customer's credit
+   - If marked as PAID: Adds loan amount back to customer's credit AND sets `settledBy` field
    - If marked as CANCELLED: No credit adjustment
-5. **Notes**: Optional notes are stored with the status change
+6. **Validation Check**: Verifies that PAID loans have valid `settledBy` field after update
+7. **Notes**: Optional notes are stored with the status change
 
 ---
 
@@ -152,6 +154,13 @@ GET /api/owner/loans?status=ACTIVE&page=1&limit=20
 {
   "success": false,
   "error": "Loan ID and status are required"
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "BUSINESS RULE VIOLATION: All PAID loans must have a valid settledBy field identifying the staff member who processed the settlement"
 }
 ```
 
@@ -188,6 +197,7 @@ GET /api/owner/loans?status=ACTIVE&page=1&limit=20
 {
   "_id": ObjectId,
   "loanApprover": "string",        // User ID who approved the loan
+  "settledBy": "string",           // MANDATORY for PAID loans: User ID who settled the loan
   "restaurantId": "string",        // Restaurant this loan belongs to
   "userId": "string",              // Customer who received the loan
   "orderId": "string",             // Associated order ID

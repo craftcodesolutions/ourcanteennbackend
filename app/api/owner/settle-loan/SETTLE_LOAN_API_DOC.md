@@ -73,6 +73,13 @@ Content-Type: application/json
 }
 ```
 
+```json
+{
+  "success": false,
+  "error": "BUSINESS RULE VIOLATION: All loan settlements must have a valid settledBy field identifying the staff member who processed the settlement"
+}
+```
+
 #### 401 - Unauthorized
 ```json
 {
@@ -116,12 +123,14 @@ Content-Type: application/json
    - Validates user ID is provided
    - Ensures all loans exist and are ACTIVE
    - Verifies all loans belong to the specified user
-3. **No Time Restrictions**: Loans can be settled immediately (1-hour rule only applies to cancellation)
-4. **Transaction Processing**:
-   - Updates all specified loans to PAID status
+3. **Business Rule Enforcement**: **MANDATORY** - All loan settlements must include a `settledBy` field with the staff member's user ID for audit purposes
+4. **No Time Restrictions**: Loans can be settled immediately (1-hour rule only applies to cancellation)
+5. **Transaction Processing**:
+   - Updates all specified loans to PAID status with `settledBy` field
    - Adds settlement timestamp and notes
    - Restores customer credit by adding total loan amount
-5. **Response**: Returns settlement summary and updated customer info
+6. **Validation Check**: Verifies that all settled loans have valid `settledBy` field after update
+7. **Response**: Returns settlement summary and updated customer info
 
 ### Payment Method
 - **Fixed**: Cash at Restaurant (as per requirements)

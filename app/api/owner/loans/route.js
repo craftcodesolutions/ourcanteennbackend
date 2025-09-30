@@ -3,6 +3,21 @@ import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import { authenticate } from '@/lib/auth';
 
+// === CRITICAL BUSINESS RULE ENFORCEMENT ===
+// This function ensures that ALL loans marked as PAID must have a settledBy field
+// This is mandatory for financial audit and staff accountability
+function validatePaidLoanUpdate(updateData, userId) {
+    if (updateData.status === 'PAID') {
+        if (!updateData.settledBy || !userId) {
+            throw { 
+                status: 400, 
+                error: 'BUSINESS RULE VIOLATION: All PAID loans must have a valid settledBy field identifying the staff member who processed the settlement' 
+            };
+        }
+    }
+    return true;
+}
+
 // === Authentication helper ===
 async function authenticateOwnerOrStaff(req) {
     const user = await authenticate(req);
@@ -192,8 +207,11 @@ export async function PUT(req) {
                 // Add timestamp and notes based on status
                 if (newStatus === 'PAID') {
                     updateData.paidAt = new Date();
-                    updateData.settledBy = user.userId; // Add staff attribution
+                    updateData.settledBy = user.userId; // MANDATORY: Staff attribution for settlement
                     if (notes) updateData.notes = notes;
+                    
+                    // ENFORCE BUSINESS RULE: Validate PAID loan requirements
+                    validatePaidLoanUpdate(updateData, user.userId);
                 } else if (newStatus === 'CANCELLED') {
                     updateData.cancelledAt = new Date();
                     if (notes) updateData.notes = notes;
@@ -208,6 +226,18 @@ export async function PUT(req) {
 
                 if (loanUpdate.modifiedCount !== 1) {
                     throw { status: 500, error: 'Failed to update loan' };
+                }
+
+                // VALIDATION: Ensure settledBy field is set for PAID loans
+                if (newStatus === 'PAID') {
+                    const updatedLoan = await db.collection('loans').findOne(
+                        { _id: new ObjectId(loanId) },
+                        { session }
+                    );
+                    
+                    if (!updatedLoan.settledBy) {
+                        throw { status: 500, error: 'CRITICAL ERROR: Loan marked as PAID without settledBy field' };
+                    }
                 }
 
                 // If loan is marked as PAID, update customer's credit
