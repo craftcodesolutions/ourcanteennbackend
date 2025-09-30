@@ -80,13 +80,23 @@ export async function GET(req) {
             return acc;
         }, {});
 
-        // 5. Fetch Topup and Order Tracks
+        // 5. Fetch Topup, Order, and Loan Settlement Tracks
         const topupTracks = await db.collection('topup').find({
             topupMaker: { $in: memberIds.map(m => m.id) }
         }).toArray();
 
         const ordersTracks = await db.collection('orders').find({
             succeededBy: { $in: memberIds.map(m => m.id) }
+        }).toArray();
+
+        // Fetch loan settlements (loans that have been paid/settled)
+        const loanTracks = await db.collection('loans').find({
+            status: 'PAID',
+            // Find loans settled by any staff member (check notes for staff attribution)
+            $or: [
+                { notes: { $regex: memberIds.map(m => `settled by.*${m.id}`).join('|'), $options: 'i' } },
+                { settledBy: { $in: memberIds.map(m => m.id) } }
+            ]
         }).toArray();
 
         // 6. Collect All Active Dates (YYYY-MM-DD format)
@@ -103,10 +113,16 @@ export async function GET(req) {
                 allDatesSet.add(day);
             }
         });
+        loanTracks.forEach(l => {
+            if (l.paidAt) {
+                const day = new Date(l.paidAt).toISOString().slice(0, 10);
+                allDatesSet.add(day);
+            }
+        });
 
         const allDates = Array.from(allDatesSet).sort().reverse(); // latest first
 
-        // 7. Group Topups and Orders by Date and Member
+        // 7. Group Topups, Orders, and Loan Settlements by Date and Member
         const categorizedByDate = {};
 
         for (const day of allDates) {
@@ -125,6 +141,20 @@ export async function GET(req) {
                     new Date(o.updatedAt).toISOString().slice(0, 10) === day
                 );
 
+                // Filter loan settlements by member and date
+                const memberLoans = loanTracks.filter(l => {
+                    if (!l.paidAt || new Date(l.paidAt).toISOString().slice(0, 10) !== day) {
+                        return false;
+                    }
+                    
+                    // Check if this member settled the loan (from notes or settledBy field)
+                    const settledByMember = l.settledBy === member.id || 
+                        (l.notes && l.notes.toLowerCase().includes(`settled by`)) ||
+                        (l.notes && l.notes.includes(member.id));
+                    
+                    return settledByMember;
+                });
+
                 const topupStat = {
                     count: memberTopups.length,
                     amount: memberTopups.reduce((sum, t) => sum + (typeof t.amount === 'number' ? t.amount : 0), 0)
@@ -135,6 +165,11 @@ export async function GET(req) {
                     amount: memberOrders.reduce((sum, o) => sum + (typeof o.total === 'number' ? o.total : 0), 0)
                 };
 
+                const loanStat = {
+                    count: memberLoans.length,
+                    amount: memberLoans.reduce((sum, l) => sum + (typeof l.loanAmount === 'number' ? l.loanAmount : 0), 0)
+                };
+
                 categorizedByDate[day][member.id] = {
                     info: {
                         ...member,
@@ -142,8 +177,10 @@ export async function GET(req) {
                     },
                     topupTracks: memberTopups,
                     ordersTracks: memberOrders,
+                    loanTracks: memberLoans,
                     topupStat,
-                    orderStat
+                    orderStat,
+                    loanStat
                 };
             }
         }
